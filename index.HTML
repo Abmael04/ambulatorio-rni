@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestão - Anticoagulação PBH</title>
+    <!-- Tailwind CSS para estilização -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .tab-active { border-bottom: 2px solid #0284c7; color: #0284c7; font-weight: 600; }
+        .tab-inactive { color: #64748b; }
+        .tab-inactive:hover { color: #0f172a; }
+        
+        /* Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        
+        /* Tooltip CSS */
+        .tooltip { position: relative; display: inline-block; cursor: help; }
+        .tooltip .tooltiptext {
+            visibility: hidden; width: 250px; background-color: #1e293b; color: #fff;
+            text-align: center; border-radius: 6px; padding: 8px; font-size: 0.75rem; font-weight: normal;
+            position: absolute; z-index: 10; bottom: 125%; left: 50%; margin-left: -125px;
+            opacity: 0; transition: opacity 0.3s;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .tooltip .tooltiptext::after {
+            content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px;
+            border-width: 5px; border-style: solid; border-color: #1e293b transparent transparent transparent;
+        }
+        .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
+
+        /* Esconder abas inativas */
+        .page-content { display: none; }
+        .page-content.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Estilos Pílulas Visuais */
+        .pill {
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 9999px; font-weight: 900; font-size: 13px;
+            width: 42px; height: 42px; margin: 3px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15); 
+            color: #fff; text-shadow: 0px 1px 1px rgba(0,0,0,0.3);
+            line-height: 1; border: 2px solid;
+        }
+        .pill-5 { background-color: #ef4444; border-color: #b91c1c; }
+        .pill-25 { background-color: #eab308; border-color: #a16207; color: #fff; }
+        .pill-5-half { 
+            background: linear-gradient(135deg, #ef4444 50%, #fef2f2 50%); 
+            border-color: #b91c1c; 
+            color: #7f1d1d; 
+            text-shadow: none; 
+            font-size: 9.5px; 
+            letter-spacing: -0.5px;
+        }
+        .pill-none { background-color: #f1f5f9; color: #94a3b8; border: 2px dashed #cbd5e1; text-shadow: none; box-shadow: none; font-size: 11px; font-weight: 700; flex-direction: column; width: 42px; height: 42px; }
+
+        /* REGRAS ABSOLUTAS DE IMPRESSÃO */
+        #batchPrintArea { display: none; }
+        
+        @media print {
+            @page { size: portrait; margin: 5mm; } 
+            
+            body.batch-printing #app-wrapper { display: none !important; }
+            body.batch-printing #unsavedBanner { display: none !important; }
+            html, body { height: auto !important; width: 100% !important; overflow: visible !important; background: #fff !important; margin: 0 !important; padding: 0 !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            
+            body.batch-printing #batchPrintArea {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 5mm !important; 
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                position: absolute !important; 
+                left: 0 !important; 
+                top: 0 !important;
+            }
+            
+            .batch-reloginho {
+                border: 2px solid #000 !important;
+                padding: 8px !important;
+                border-radius: 8px !important;
+                display: flex !important;
+                flex-direction: column !important;
+                height: 6.8cm !important; 
+                width: 20cm !important; 
+                box-sizing: border-box !important;
+                background-color: #fff !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+
+            .batch-days-wrapper {
+                display: flex !important;
+                flex-direction: row !important;
+                width: 100% !important;
+                flex: 1 !important;
+                gap: 4px !important;
+                align-items: stretch !important;
+            }
+
+            .batch-day-col {
+                flex: 1 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                border: 1px solid #94a3b8 !important;
+                border-radius: 6px !important;
+                overflow: hidden !important;
+                background-color: #fff !important;
+            }
+
+            #batchPrintArea .pill { width: 28px !important; height: 28px !important; font-size: 9px !important; margin: 1px !important; border-width: 1px !important; border-radius: 9999px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; color: #fff !important; text-shadow: none !important; }
+            #batchPrintArea .pill-5 { background-color: #ef4444 !important; border-color: #b91c1c !important; }
+            #batchPrintArea .pill-25 { background-color: #eab308 !important; border-color: #a16207 !important; color: #fff !important; }
+            #batchPrintArea .pill-5-half { background: linear-gradient(135deg, #ef4444 50%, #fef2f2 50%) !important; border-color: #b91c1c !important; color: #7f1d1d !important; font-size: 7px !important; letter-spacing: -0.5px !important;}
+            #batchPrintArea .pill-none { font-size: 8px !important; width: 28px !important; height: 28px !important; background-color: #f1f5f9 !important; color: #94a3b8 !important; border: 2px dashed #cbd5e1 !important; flex-direction: column !important; }
+            #batchPrintArea .pill svg { width: 12px !important; height: 12px !important; }
+        }
+    </style>
+</head>
+<body class="text-slate-800 bg-slate-50 relative">
+
+    <div id="unsavedBanner" class="hidden fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] px-4 py-2 rounded-full shadow-lg flex items-center gap-4 transition-all duration-300">
+        <span id="unsavedText" class="text-sm font-medium"></span>
+        <button onclick="exportData()" class="bg-white/20 hover:bg-white/30 text-current px-3 py-1 rounded border border-current text-xs font-bold transition shadow-sm">Baixar Backup</button>
+        <button onclick="dismissUnsavedBanner()" class="text-current opacity-70 hover:opacity-100"><i data-lucide="x" class="h-4 w-4"></i></button>
+    </div>
+
+    <div id="app-wrapper" class="flex flex-col h-screen w-full">
+        
+        <header class="bg-sky-700 text-white shadow-md z-10 flex-shrink-0">
+            <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+                <div class="flex items-center gap-3 cursor-pointer" onclick="openDashboard()">
+                    <i data-lucide="hospital" class="h-8 w-8 text-sky-200"></i>
+                    <div>
+                        <h1 class="text-xl font-bold leading-tight">Acompanhamento Ambulatorial de RNI</h1>
+                        <p class="text-xs text-sky-200">Desenvolvido pelo farmacêutico Abmael Andrade</p>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <input type="file" id="fileInput" accept=".txt,.json" class="hidden">
+                    <button onclick="document.getElementById('fileInput').click()" class="bg-sky-600 hover:bg-sky-500 transition px-3 py-1.5 rounded text-sm flex items-center gap-2">
+                        <i data-lucide="upload" class="h-4 w-4"></i> Importar Dados
+                    </button>
+                    <button onclick="exportData()" class="bg-emerald-600 hover:bg-emerald-500 transition px-3 py-1.5 rounded text-sm flex items-center gap-2">
+                        <i data-lucide="download" class="h-4 w-4"></i> Salvar/Exportar
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex-1 flex overflow-hidden container mx-auto">
+            <aside class="w-1/4 bg-white border-r shadow-sm flex flex-col z-0 min-w-[250px] flex-shrink-0">
+                <div class="p-4 border-b bg-slate-50 flex justify-between items-center">
+                    <h2 class="font-semibold text-slate-700">Pacientes</h2>
+                    <button onclick="openNewPatient()" class="bg-sky-100 text-sky-700 p-1.5 rounded hover:bg-sky-200 transition tooltip">
+                        <i data-lucide="plus" class="h-5 w-5"></i>
+                        <span class="tooltiptext">Cadastrar Novo Paciente</span>
+                    </button>
+                </div>
+                <div class="p-3">
+                    <div class="relative">
+                        <i data-lucide="search" class="h-4 w-4 absolute left-3 top-2.5 text-slate-400"></i>
+                        <input type="text" id="searchPatient" placeholder="Buscar paciente..." onkeyup="renderPatientList()" class="w-full pl-9 pr-3 py-2 border rounded-md text-sm outline-none focus:ring-1 focus:ring-sky-500">
+                    </div>
+                </div>
+                <div class="flex-1 overflow-y-auto" id="patientListContainer">
+                </div>
+            </aside>
+
+            <main class="flex-1 flex flex-col bg-slate-50 overflow-hidden relative">
+                
+                <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-50 z-10 hidden">
+                    <i data-lucide="clipboard-list" class="h-16 w-16 text-slate-300 mb-4"></i>
+                    <h2 class="text-xl font-medium text-slate-500">Selecione ou crie um paciente</h2>
+                    <p class="text-sm text-slate-400 mt-2">Os dados serão salvos localmente via exportação.</p>
+                </div>
+
+                <div id="tabsContainer" class="bg-white border-b px-6 flex gap-4 flex-wrap flex-shrink-0">
+                    <button onclick="switchTab('dashboard')" id="tab-dashboard" class="py-3 px-1 tab-active flex items-center gap-2"><i data-lucide="layout-dashboard" class="h-4 w-4"></i> Visão Geral</button>
+                    <button onclick="switchTab('calendario')" id="tab-calendario" class="py-3 px-1 tab-inactive flex items-center gap-2"><i data-lucide="calendar-days" class="h-4 w-4"></i> Calendário Global</button>
+                    <button onclick="switchTab('impressao')" id="tab-impressao" class="py-3 px-1 tab-inactive flex items-center gap-2 font-bold text-indigo-600"><i data-lucide="printer" class="h-4 w-4"></i> Central de Impressão</button>
+                    <div class="border-l border-slate-300 mx-1 my-2"></div>
+                    <button onclick="switchTab('cadastro')" id="tab-cadastro" class="py-3 px-1 tab-inactive flex items-center gap-2 text-slate-400 pointer-events-none"><i data-lucide="user" class="h-4 w-4"></i> Cadastro</button>
+                    <button onclick="switchTab('consulta')" id="tab-consulta" class="py-3 px-1 tab-inactive flex items-center gap-2 text-slate-400 pointer-events-none"><i data-lucide="list-checks" class="h-4 w-4"></i> Consulta (Checklist)</button>
+                    <button onclick="switchTab('monitoramento')" id="tab-monitoramento" class="py-3 px-1 tab-inactive flex items-center gap-2 text-slate-400 pointer-events-none"><i data-lucide="line-chart" class="h-4 w-4"></i> RNI e Conduta</button>
+                    <button onclick="switchTab('ivcf')" id="tab-ivcf" class="py-3 px-1 tab-inactive flex items-center gap-2 text-slate-400 pointer-events-none"><i data-lucide="clipboard-plus" class="h-4 w-4"></i> IVCF-20</button>
+                    <button onclick="switchTab('agenda')" id="tab-agenda" class="py-3 px-1 tab-inactive flex items-center gap-2 text-slate-400 pointer-events-none"><i data-lucide="calendar" class="h-4 w-4"></i> Marcar Retorno</button>
+                </div>
+
+                <div id="contentArea" class="flex-1 overflow-y-auto p-6 hidden">
+                    
+                    <!-- DASHBOARD -->
+                    <section id="page-dashboard" class="page-content active max-w-6xl mx-auto space-y-6">
+                        <div class="mb-2">
+                            <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2"><i data-lucide="heart-pulse" class="h-7 w-7 text-sky-600"></i> Radar do Ambulatório de RNI</h2>
+                            <p class="text-slate-500 text-sm mt-1">Estatísticas, controle de estabilidade e acompanhamento de consultas desde a implantação farmacêutica.</p>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full max-h-80">
+                                <div class="bg-indigo-50 border-b border-indigo-100 px-4 py-3 flex items-center gap-2 flex-shrink-0"><i data-lucide="calendar-clock" class="h-5 w-5 text-indigo-600"></i><h3 class="font-bold text-indigo-900">Próxima Quarta-feira</h3></div>
+                                <div class="p-4 flex-1 overflow-y-auto custom-scrollbar" id="dashNextAppts"></div>
+                            </div>
+                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full max-h-80">
+                                <div class="bg-red-50 border-b border-red-100 px-4 py-3 flex items-center gap-2 flex-shrink-0"><i data-lucide="alert-triangle" class="h-5 w-5 text-red-600"></i><h3 class="font-bold text-red-900">Atenção Prioritária (Críticos)</h3></div>
+                                <div class="p-4 flex-1 overflow-y-auto custom-scrollbar" id="dashCritical"></div>
+                            </div>
+                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full max-h-80">
+                                <div class="bg-emerald-50 border-b border-emerald-100 px-4 py-3 flex items-center gap-2 flex-shrink-0"><i data-lucide="award" class="h-5 w-5 text-emerald-600"></i><h3 class="font-bold text-emerald-900">Aptos para Alta (CS)</h3></div>
+                                <div class="p-4 flex-1 overflow-y-auto custom-scrollbar" id="dashDischarge"></div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 relative overflow-hidden">
+                            <div class="absolute top-0 right-0 p-4 opacity-10 pointer-events-none"><i data-lucide="trending-up" class="h-32 w-32 text-sky-600"></i></div>
+                            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2 mb-1"><i data-lucide="bar-chart-3" class="h-5 w-5 text-sky-600"></i> Impacto Clínico do Serviço (A partir de 01/04/2026)</h3>
+                            <p class="text-xs text-slate-500 mb-6 w-3/4">Comparativo do Tempo na Faixa Terapêutica (TTR) medindo a eficiência da anticoagulação populacional.</p>
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-stretch">
+                                <div class="bg-slate-50 rounded-lg p-4 text-center border border-slate-100 flex flex-col justify-center"><p class="text-4xl font-black text-slate-700" id="dashTotalPat">0</p><p class="text-[10px] uppercase font-bold text-slate-500 mt-1">Pacientes Ativos</p></div>
+                                <div class="bg-emerald-50 rounded-lg p-4 text-center border border-emerald-100 flex flex-col h-40"><p class="text-3xl font-black text-emerald-600" id="dashImproved">0</p><p class="text-[10px] uppercase font-bold text-emerald-700 mt-1 mb-2 border-b border-emerald-100 pb-2">Melhora ou Estabilidade</p><div id="dashImprovedList" class="flex-1 overflow-y-auto custom-scrollbar text-[10px] font-medium text-emerald-800 text-left space-y-1"></div></div>
+                                <div class="bg-amber-50 rounded-lg p-4 text-center border border-amber-100 flex flex-col h-40"><p class="text-3xl font-black text-amber-600" id="dashWorsened">0</p><p class="text-[10px] uppercase font-bold text-amber-700 mt-1 mb-2 border-b border-amber-100 pb-2">Piora Drástica no TTR</p><div id="dashWorsenedList" class="flex-1 overflow-y-auto custom-scrollbar text-[10px] font-medium text-amber-800 text-left space-y-1"></div></div>
+                                <div class="bg-sky-50 rounded-lg p-4 text-center border border-sky-100 flex flex-col justify-center items-center"><span class="text-xs uppercase font-bold text-sky-700 mb-1">Taxa de Sucesso Geral</span><div class="flex items-end gap-1"><p class="text-5xl font-black text-sky-600 leading-none" id="dashSuccessRate">0</p><p class="text-2xl font-bold text-sky-600 mb-1">%</p></div></div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- CADASTRO -->
+                    <section id="page-cadastro" class="page-content max-w-4xl mx-auto">
+                        <div class="bg-white rounded-lg shadow-sm border p-6">
+                            <h3 class="text-lg font-semibold text-slate-800 mb-4 border-b pb-2">Dados Clínicos Gerais</h3>
+                            
+                            <form id="patientForm" onsubmit="savePatient(event)" class="grid grid-cols-2 gap-4">
+                                <input type="hidden" id="patId">
+                                
+                                <div class="col-span-2 sm:col-span-1">
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Nome Completo</label>
+                                    <input type="text" id="patName" required class="w-full border rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-sky-500" onchange="registerChange()">
+                                </div>
+
+                                <div class="col-span-2 sm:col-span-1">
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Telefone / Contato</label>
+                                    <input type="text" id="patContact" class="w-full border rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-sky-500" placeholder="(31) 90000-0000" onchange="registerChange()">
+                                </div>
+
+                                <div class="col-span-2 sm:col-span-1">
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Data de Nascimento <span id="patAgeDisplay" class="text-indigo-600 font-bold ml-2"></span></label>
+                                    <input type="date" id="patBirthDate" class="w-full border rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-sky-500" onchange="updateAgeDisplay(); registerChange()">
+                                </div>
+
+                                <div class="col-span-2 sm:col-span-1">
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Data de Admissão</label>
+                                    <input type="date" id="patAdmission" class="w-full border rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-sky-500" onchange="registerChange()">
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Nível de Atenção Exigida</label>
+                                    <select id="patLevel" class="w-full border rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-sky-500" onchange="registerChange()">
+                                        <option value="Baixo">Baixo (Boa adesão)</option>
+                                        <option value="Médio" selected>Médio</option>
+                                        <option value="Alto">Alto (Vulnerável)</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Uso de Organizador (Fita)?</label>
+                                    <select id="patOrganizer" class="w-full border rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-sky-500" onchange="renderPatientList(); registerChange()">
+                                        <option value="Sim">Sim</option>
+                                        <option value="Não" selected>Não</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Indicação da Varfarina</label>
+                                    <select id="patIndication" class="w-full border rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-sky-500" onchange="registerChange()">
+                                        <option value="Fibrilação Atrial">Fibrilação Atrial (FA)</option>
+                                        <option value="TVP/TEP">TVP / TEP</option>
+                                        <option value="Prótese Mecânica Mitral">Prótese Mecânica Mitral</option>
+                                        <option value="Prótese Mecânica Aórtica">Prótese Mecânica Aórtica</option>
+                                        <option value="Valvulopatia Reumática">Valvulopatia Reumática</option>
+                                        <option value="Trombo Intracardíaco">Trombo Intracardíaco</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1 text-sky-700 font-bold">Faixa Terapêutica Alvo (RNI)</label>
+                                    <select id="patTarget" class="w-full border border-sky-300 bg-sky-50 rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-sky-500 font-semibold" onchange="registerChange()">
+                                        <option value="2.0-3.0">2.0 a 3.0 (Maioria dos casos)</option>
+                                        <option value="2.5-3.5">2.5 a 3.5 (Prótese Metálica Mitral)</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-span-2 bg-slate-50 p-4 rounded-lg border border-slate-200 mt-2">
+                                    <h4 class="text-xs font-bold text-slate-700 uppercase mb-2">Dose Semanal Atual (Em uso pelo paciente)</h4>
+                                    <div class="flex gap-2 sm:w-1/2">
+                                        <input type="number" step="0.1" id="patDosePrev" placeholder="mg" class="w-24 border border-slate-300 rounded px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:ring-1 focus:ring-sky-500" onchange="registerChange()">
+                                        <input type="date" id="patDosePrevDate" class="flex-1 border border-slate-300 rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-sky-500" onchange="registerChange()">
+                                    </div>
+                                    <p class="text-[10px] text-slate-500 mt-1.5">* Preencha a dose que o paciente estava utilizando até chegar a esta consulta. O sistema usará este valor como base para calcular a nova conduta na aba de RNI.</p>
+                                </div>
+                                
+                                <input type="hidden" id="patDoseCurrent">
+                                <input type="hidden" id="patDoseCurrentDate">
+
+                                <div class="col-span-2 sm:col-span-1 mt-2">
+                                    <label class="block text-sm font-medium text-indigo-700 font-bold mb-1">Preferência de Comprimido</label>
+                                    <select id="patPillPref" class="w-full border border-indigo-300 bg-indigo-50 rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-indigo-500 font-semibold text-indigo-900" onchange="registerChange()">
+                                        <option value="ambos" selected>Ambos (5mg e 2,5mg)</option>
+                                        <option value="5mg">Apenas 5mg (Metades)</option>
+                                        <option value="2.5mg">Apenas 2,5mg</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-span-2 mt-2">
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Medicamentos Concomitantes <span class="text-xs text-slate-400">(Separe por vírgula)</span></label>
+                                    <textarea id="patMeds" rows="2" class="w-full border rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-sky-500" oninput="checkInteractions(); registerChange()"></textarea>
+                                </div>
+
+                                <!-- CAIXA DE INTERAÇÕES MELHORADA -->
+                                <div id="interactionAlert" class="col-span-2 hidden bg-slate-50 border-l-4 border-amber-500 p-4 rounded-md shadow-sm">
+                                    <div class="flex items-start gap-3">
+                                        <i data-lucide="alert-triangle" class="h-6 w-6 text-amber-600 mt-0.5"></i>
+                                        <div class="w-full">
+                                            <h4 class="text-sm font-bold text-slate-800 border-b border-slate-200 pb-1 mb-2">Interações Medicamentosas Detectadas (Anexo G)</h4>
+                                            <ul id="interactionList" class="text-xs text-slate-700 list-none m-0 p-0 space-y-2"></ul>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-span-2 mt-4 pt-4 border-t border-slate-200">
+                                    <label class="block text-sm font-bold text-slate-700 mb-1 flex items-center gap-1.5"><i data-lucide="history" class="h-4 w-4 text-slate-500"></i> Reloginho Prévio (Como toma hoje)</label>
+                                    <p class="text-xs text-slate-500 mb-3">Preencha como o paciente tomava a medicação antes desta consulta, para ajudar na adaptação visual da nova dose.</p>
+                                    <div class="grid grid-cols-7 gap-2" id="prevInputsContainer">
+                                        <!-- Injetado via JS para não truncar -->
+                                    </div>
+                                </div>
+
+                                <div class="col-span-2 flex justify-between mt-6 border-t border-slate-100 pt-4">
+                                    <button type="button" onclick="deleteCurrentPatient()" id="btnDeletePatient" class="hidden bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-medium py-2 px-4 rounded-md transition shadow-sm flex items-center gap-2"><i data-lucide="trash-2" class="h-4 w-4"></i> Excluir</button>
+                                    <button type="submit" class="bg-sky-600 hover:bg-sky-700 text-white font-medium py-2 px-6 rounded-md transition shadow-sm ml-auto">Salvar Dados</button>
+                                </div>
+                            </form>
+                        </div>
+                    </section>
+
+                    <!-- CHECKLIST -->
+                    <section id="page-consulta" class="page-content max-w-4xl mx-auto space-y-6">
+                        <div class="bg-white rounded-lg shadow-sm border p-6">
+                            <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2 mb-2 border-b pb-4"><i data-lucide="list-checks" class="h-6 w-6 text-indigo-600"></i> Anamnese e Checklist</h3>
+                            <div class="grid grid-cols-1 gap-5" id="checklistContainer">
+                                <!-- Gerado via JS -->
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- MONITORAMENTO E DECISAO -->
+                    <section id="page-monitoramento" class="page-content max-w-5xl mx-auto space-y-6">
+                        <div class="grid grid-cols-2 gap-6">
+                            <div class="bg-white rounded-lg shadow-sm border p-6">
+                                <h3 class="text-lg font-semibold text-slate-800 mb-4 border-b pb-2 flex justify-between items-center"><span>Histórico de RNI</span><button onclick="addRniRow()" class="text-sky-600 hover:text-sky-800 text-sm font-medium flex items-center gap-1"><i data-lucide="plus" class="h-4 w-4"></i> Adicionar</button></h3>
+                                <div id="rniInputsContainer" class="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar"></div>
+                                <button onclick="calculateTrend()" class="mt-4 w-full bg-slate-800 hover:bg-slate-700 text-white font-medium py-2 px-4 rounded-md transition shadow-sm flex justify-center items-center gap-2"><i data-lucide="calculator" class="h-4 w-4"></i> Analisar Conduta</button>
+                            </div>
+                            <div class="bg-white rounded-lg shadow-sm border p-6 border-t-4 border-t-sky-500 flex flex-col">
+                                <h3 class="text-lg font-semibold text-slate-800 mb-2">Tempo na Faixa Terapêutica (TTR)</h3>
+                                <p class="text-xs text-slate-500 mb-4">Avalia os critérios de alta para a Atenção Primária.</p>
+                                <div class="flex-1 flex flex-col items-center bg-slate-50 rounded-lg border border-dashed border-slate-300 p-4 w-full relative">
+                                    <span class="text-sm text-slate-500 font-medium">TTR Global:</span>
+                                    <div class="flex items-end gap-1 mt-1"><span id="ttrValueDisplay" class="text-5xl font-black text-slate-300">--</span><span class="text-2xl font-bold text-slate-300 mb-1">%</span></div>
+                                    <div id="ttrDetailsContainer" class="mt-3 w-full text-center hidden">
+                                        <p class="text-[11px] text-slate-600 mb-2 bg-white border rounded px-2 py-1 inline-block shadow-sm font-medium">Período: <strong id="ttrStartDate">--</strong> até <strong id="ttrEndDate">--</strong></p>
+                                        <div class="flex justify-center gap-3 mt-1">
+                                            <div class="bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-md flex flex-col min-w-[70px]"><span class="font-bold text-lg leading-none" id="ttrDaysIn">--</span><span class="text-[10px] uppercase font-bold mt-1">Na Faixa</span></div>
+                                            <div class="bg-red-50 text-red-800 border border-red-200 px-3 py-1.5 rounded-md flex flex-col min-w-[70px]"><span class="font-bold text-lg leading-none" id="ttrDaysOut">--</span><span class="text-[10px] uppercase font-bold mt-1">Fora</span></div>
+                                            <div class="bg-slate-100 text-slate-700 border border-slate-300 px-3 py-1.5 rounded-md flex flex-col min-w-[70px]"><span class="font-bold text-lg leading-none" id="ttrDaysTotal">--</span><span class="text-[10px] uppercase font-bold mt-1">Total Dias</span></div>
+                                        </div>
+                                    </div>
+                                    <span id="ttrEmptyDisplay" class="text-xs text-slate-500 mt-2 text-center">Adicione exames para calcular.</span>
+                                    <div id="ttrDischargeAlert" class="mt-4 w-full p-3 rounded border text-sm font-medium text-center hidden"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="chartPanel" class="bg-white rounded-lg shadow-sm border p-6 hidden">
+                            <h3 class="text-lg font-semibold text-slate-800 mb-4 border-b pb-2 flex items-center gap-2"><i data-lucide="line-chart" class="h-5 w-5 text-sky-600"></i> Gráfico do RNI</h3>
+                            <div class="relative w-full h-64"><canvas id="rniChart"></canvas></div>
+                        </div>
+
+                        <div id="decisionPanel" class="bg-white rounded-lg shadow-sm border overflow-hidden hidden">
+                            <div class="bg-slate-800 text-white px-6 py-3 flex items-center gap-2"><i data-lucide="stethoscope" class="h-5 w-5"></i><h3 class="font-semibold">Decisão Clínica - Protocolo PBH</h3></div>
+                            <div class="p-6">
+                                <div class="flex justify-between mb-4">
+                                    <div><p class="text-sm text-slate-500">RNI Atual:</p><p class="text-2xl font-bold text-slate-800" id="currentRniDisplay">--</p></div>
+                                    <div class="text-right"><p class="text-sm text-slate-500">Alvo:</p><p class="text-lg font-bold text-sky-700" id="targetDisplay">--</p></div>
+                                </div>
+                                <div id="conductBox" class="p-4 rounded-md border-l-4">
+                                    <h4 id="conductTitle" class="font-bold text-lg mb-1 outline-none" contenteditable="true">Conduta...</h4>
+                                    <p id="conductDesc" class="text-sm mt-2 font-medium outline-none" contenteditable="true"></p>
+                                    <p id="conductMath" class="text-xs mt-2 pt-2 border-t opacity-80 outline-none" contenteditable="true"></p>
+                                </div>
+                                <div id="suggestedReturnBox" class="mt-3 p-2 bg-white/50 rounded border hidden"><p class="text-sm font-bold flex items-center gap-1.5"><i data-lucide="calendar-clock" class="h-4 w-4"></i> Retorno Sugerido: <span id="suggestedReturnText"></span></p></div>
+
+                                <div id="ajusteFinoBox" class="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-200 no-print">
+                                    <h4 class="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2"><i data-lucide="sliders" class="h-4 w-4 text-indigo-600"></i> Ajuste Fino</h4>
+                                    <div class="flex items-center gap-3 flex-wrap">
+                                        <div class="flex items-center gap-2"><label class="text-xs font-bold text-slate-700 uppercase">Dose Atual (mg):</label><input type="number" step="0.1" id="appliedWeeklyDose" class="w-20 border border-slate-300 rounded px-2 py-1.5 text-sm font-bold text-center outline-none"></div>
+                                        <div class="flex items-center gap-2"><label class="text-xs font-bold text-slate-700 uppercase">Comprimidos:</label><select id="appliedPillPref" class="border border-slate-300 rounded px-2 py-1.5 text-sm font-medium outline-none" onchange="syncPillPref()"><option value="ambos">Ambos</option><option value="5mg">Apenas 5mg</option><option value="2.5mg">Apenas 2,5mg</option></select></div>
+                                        <button onclick="updateReloginhoFromAppliedDose()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-4 py-1.5 rounded font-medium transition ml-auto"><i data-lucide="refresh-cw" class="h-3 w-3 inline mr-1"></i> Recalcular Reloginho</button>
+                                    </div>
+                                </div>
+
+                                <div id="conductSchedule" class="mt-4 p-3 bg-white/60 rounded border border-slate-200/60 hidden"></div>
+                                
+                                <div id="dispensationCalc" class="mt-4 p-4 bg-white/80 rounded border border-indigo-100 shadow-sm hidden">
+                                    <h4 class="font-bold text-sm text-indigo-900 mb-3 flex items-center gap-1.5"><i data-lucide="package-open" class="h-4 w-4 text-indigo-600"></i> Calculadora de Dispensação</h4>
+                                    <div class="flex gap-3 mb-2">
+                                        <div class="flex-1"><label class="block text-xs font-medium text-slate-600 mb-1">Dia da Consulta</label><input type="date" id="dispenseStart" class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm outline-none" onchange="calculateDispensation(); registerChange()"></div>
+                                        <div class="flex-1"><label class="block text-xs font-medium text-slate-600 mb-1">Dia do Retorno</label><input type="date" id="dispenseEnd" class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm outline-none" onchange="calculateDispensation(); registerChange()"></div>
+                                    </div>
+                                    <label class="flex items-center gap-2 mb-3 text-xs text-slate-600 cursor-pointer"><input type="checkbox" id="includeReturnDay" checked onchange="calculateDispensation(); registerChange()" class="rounded border-slate-300 text-indigo-600"> Dispensar para o dia do retorno</label>
+                                    <div id="dispenseResult" class="text-sm font-semibold text-indigo-800 mt-2 bg-indigo-50 p-3 rounded-md text-center border border-indigo-100 hidden"></div>
+                                </div>
+                                
+                                <div id="prevReloginhoView" class="mt-8 p-4 bg-slate-50 border border-slate-200 rounded-lg hidden">
+                                    <h4 class="font-bold text-sm text-slate-700 mb-3 flex items-center gap-1.5"><i data-lucide="history" class="h-4 w-4 text-slate-500"></i> Reloginho Prévio (Como tomava)</h4>
+                                    <div class="grid grid-cols-7 gap-2" id="prevReloginhoGrid"></div>
+                                </div>
+
+                                <div id="reloginhoWrapper" class="mt-4 hidden">
+                                    <div class="flex justify-between items-center mb-2"><h4 class="font-bold text-sm text-indigo-900 flex items-center gap-1.5"><i data-lucide="edit-3" class="h-4 w-4 text-indigo-600"></i> Relógio de Prescrição</h4></div>
+                                    <div class="p-6 bg-white border border-slate-300 rounded-lg shadow-sm">
+                                        <div class="flex justify-between items-end mb-4 border-b border-slate-200 pb-2">
+                                            <div><p class="text-[10px] uppercase font-bold text-slate-500">Paciente</p><p class="text-sm font-bold text-slate-800" id="relPacienteView">--</p></div>
+                                            <div class="text-right"><p class="text-[10px] uppercase font-bold text-slate-500">Retorno Previsto</p><p class="text-sm font-bold text-slate-800" id="relRetornoView">--</p></div>
+                                        </div>
+                                        <div id="relDaysContainer" class="flex gap-2 w-full"></div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-8 bg-white rounded-lg shadow-sm border overflow-hidden no-print">
+                                    <div class="bg-slate-800 text-white px-6 py-3 flex items-center justify-between"><div class="flex items-center gap-2"><i data-lucide="file-text" class="h-5 w-5"></i><h3 class="font-semibold">Evolução Farmacêutica</h3></div><button onclick="generatePreEvolution()" class="bg-indigo-500 hover:bg-indigo-600 text-white text-xs px-3 py-1.5 rounded transition shadow-sm">Gerar Pré-Evolução</button></div>
+                                    <div class="p-6 bg-slate-50"><textarea id="evolutionText" rows="18" class="w-full border border-slate-300 rounded-md p-4 text-sm outline-none leading-relaxed text-slate-700 font-mono shadow-inner" onkeyup="autoSaveEvolution()"></textarea></div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- IVCF -->
+                    <section id="page-ivcf" class="page-content max-w-4xl mx-auto space-y-6">
+                        <div class="bg-white rounded-lg shadow-sm border p-6">
+                            <div class="flex justify-between items-center mb-4 border-b pb-4"><h3 class="text-xl font-bold text-slate-800 flex items-center gap-2"><i data-lucide="clipboard-plus" class="h-6 w-6 text-indigo-600"></i> Avaliação IVCF-20</h3><button onclick="clearIvcfForm()" class="text-sm font-medium border px-3 py-1.5 rounded transition">Nova Avaliação</button></div>
+                            <div class="flex justify-between items-start bg-slate-50 border border-slate-200 rounded p-4 mb-6 sticky top-0 z-10 shadow-sm">
+                                <div><label class="block text-xs font-bold text-slate-600 uppercase mb-1">Data</label><input type="date" id="ivcfDate" class="border border-slate-300 rounded px-2 py-1.5 text-sm outline-none" onchange="registerChange()"></div>
+                                <div class="text-right"><div class="text-xs font-bold text-slate-500 uppercase mb-1">Pontuação Total</div><div class="text-3xl font-black text-indigo-700" id="ivcfScoreDisplay">0</div><div class="text-sm font-bold px-2 py-0.5 rounded text-white inline-block mt-1" id="ivcfCategoryDisplay" style="background-color: #94a3b8;">Robusto (0-6)</div></div>
+                            </div>
+                            <form id="ivcfForm" onchange="calculateIvcf(); registerChange()">
+                                <div class="space-y-4" id="ivcfQuestionsContainer">
+                                    <!-- Injetado via JS -->
+                                </div>
+                                <button type="button" onclick="saveIvcfTest()" class="mt-6 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-md transition shadow-sm">Salvar Avaliação no Histórico</button>
+                            </form>
+                        </div>
+                        <div class="bg-white rounded-lg shadow-sm border p-6">
+                            <h4 class="font-bold text-slate-700 mb-4 border-b pb-2">Histórico de Avaliações</h4>
+                            <ul id="ivcfHistoryList" class="space-y-3"></ul>
+                        </div>
+                    </section>
+
+                    <!-- AGENDA -->
+                    <section id="page-agenda" class="page-content max-w-3xl mx-auto">
+                        <div class="bg-white rounded-lg shadow-sm border p-6">
+                            <div class="flex items-center gap-3 mb-4"><div class="bg-sky-100 p-2 rounded-full"><i data-lucide="calendar-check" class="h-6 w-6 text-sky-700"></i></div><div><h3 class="text-lg font-semibold text-slate-800">Agendar Retorno</h3><p class="text-xs text-slate-500">Quartas-feiras (Máx. 4 pac/dia).</p></div></div>
+                            <div class="flex items-end gap-4 mt-6">
+                                <div class="flex-1"><label class="block text-sm font-medium text-slate-700 mb-1">Data</label><input type="date" id="scheduleDate" class="w-full border rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-sky-500" onchange="checkAgendaAvailability()"></div>
+                                <button onclick="schedulePatient()" id="btnSchedule" class="bg-sky-600 hover:bg-sky-700 text-white font-medium py-2 px-6 rounded-md transition disabled:opacity-50">Agendar Paciente</button>
+                            </div>
+                            <p id="agendaStatus" class="text-sm mt-2 h-5 font-medium"></p>
+                            <hr class="my-6">
+                            <h4 class="font-medium text-slate-700 mb-3">Histórico deste Paciente</h4>
+                            <ul id="patientAgendaList" class="space-y-2 text-sm text-slate-600"></ul>
+                        </div>
+                    </section>
+
+                    <!-- CALENDARIO -->
+                    <section id="page-calendario" class="page-content max-w-4xl mx-auto">
+                        <div class="bg-white rounded-lg shadow-sm border p-6">
+                            <div class="flex items-center gap-3 mb-6 border-b pb-4"><div class="bg-indigo-100 p-2 rounded-full"><i data-lucide="calendar-days" class="h-6 w-6 text-indigo-700"></i></div><div><h3 class="text-xl font-bold text-slate-800">Calendário Geral</h3><p class="text-sm text-slate-500">Marcação de pacientes agendados.</p></div></div>
+                            <div id="generalCalendarContainer" class="space-y-6"></div>
+                        </div>
+                    </section>
+
+                    <!-- IMPRESSÃO -->
+                    <section id="page-impressao" class="page-content max-w-4xl mx-auto">
+                        <div class="bg-white rounded-lg shadow-sm border p-6">
+                            <div class="flex items-center gap-3 mb-6 border-b pb-4"><div class="bg-indigo-100 p-2 rounded-full"><i data-lucide="printer" class="h-6 w-6 text-indigo-700"></i></div><div><h3 class="text-xl font-bold text-slate-800">Central de Impressão</h3><p class="text-sm text-slate-500">Imprime todos os relógios selecionados em formato A4.</p></div></div>
+                            <div class="bg-indigo-50 border border-indigo-200 rounded-md p-4 mb-4 flex justify-between items-center shadow-sm">
+                                <div class="flex items-center gap-3"><input type="checkbox" id="selectAllPrintCb" class="h-5 w-5 rounded border-slate-300 text-indigo-600 cursor-pointer" onchange="toggleAllPrint(this)"><label for="selectAllPrintCb" class="font-bold text-indigo-900 cursor-pointer select-none" id="printSelectionCount">0 paciente(s)</label></div>
+                                <button onclick="executeBatchPrint()" id="btnExecutePrint" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-md font-bold transition flex items-center gap-2 shadow-sm disabled:opacity-50" disabled><i data-lucide="printer" class="h-5 w-5"></i> Imprimir</button>
+                            </div>
+                            <div class="mb-4 relative"><i data-lucide="search" class="h-4 w-4 absolute left-3 top-3 text-slate-400"></i><input type="text" id="searchPrint" placeholder="Buscar para imprimir..." onkeyup="renderPrintTab()" class="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-md text-sm outline-none focus:ring-1 focus:ring-indigo-500"></div>
+                            <ul id="printPatientList" class="divide-y divide-slate-200 border border-slate-200 rounded-md max-h-96 overflow-y-auto bg-white"></ul>
+                        </div>
+                    </section>
+
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <div id="batchPrintArea"></div>
+
+    <script>
+        let appState = { patients: [], agenda: {} };
+        let currentPatientId = null;
+        let unsavedChangesCount = 0;
+        let lastChangeTime = 0;
+        let currentWeeklyScheduleArray = [];
+        let rniChartInstance = null;
+
+        const interacoesVarfarina = [
+            { terms: ["amiodarona", "ancoron"], severity: "Grave", action: "Aumenta muito o RNI", effect: "Inibição de CYP. Requer redução empírica." },
+            { terms: ["fluconazol", "miconazol", "cetoconazol", "itraconazol"], severity: "Grave", action: "Aumenta muito o RNI", effect: "Forte inibição da CYP2C9." },
+            { terms: ["sulfametoxazol", "trimetoprima", "bactrim", "cotrimoxazol"], severity: "Grave", action: "Aumenta muito o RNI", effect: "Inibe metabolismo da varfarina." },
+            { terms: ["metronidazol", "secnidazol"], severity: "Grave", action: "Aumenta muito o RNI", effect: "Inibição enzimática significativa." },
+            { terms: ["macrolídeo", "azitromicina", "claritromicina", "eritromicina"], severity: "Alta", action: "Aumenta RNI", effect: "Interação clássica." },
+            { terms: ["quinolona", "ciprofloxacino", "levofloxacino", "norfloxacino"], severity: "Alta", action: "Aumenta RNI", effect: "Redução flora (Vitamina K)." },
+            { terms: ["amoxicilina", "ampicilina", "cefalexina", "ceftriaxona", "penicilina", "cefalosporina"], severity: "Moderada a Alta", action: "Aumenta RNI", effect: "Alteração da flora intestinal." },
+            { terms: ["aine", "ibuprofeno", "diclofenaco", "nimesulida", "cetoprofeno", "naproxeno", "meloxicam", "piroxicam", "ácido acetilsalicílico", "aas", "aspirina"], severity: "Alta", action: "Risco de Sangramento", effect: "Lesão mucosa TGI e inibição plaquetária." },
+            { terms: ["clopidogrel", "ticagrelor", "prasugrel"], severity: "Alta", action: "Risco de Sangramento", effect: "Ação antiplaquetária." },
+            { terms: ["heparina", "enoxaparina", "clexane"], severity: "Alta", action: "Risco de Sangramento", effect: "Anticoagulação aditiva." },
+            { terms: ["rivaroxabana", "xarelto", "apixabana", "eliquis", "dabigatrana"], severity: "Contraindicado", action: "Risco de Sangramento Grave", effect: "Dupla anticoagulação." },
+            { terms: ["omeprazol", "pantoprazol", "esomeprazol"], severity: "Moderada", action: "Aumenta RNI", effect: "Competição metabolismo hepático." },
+            { terms: ["sinvastatina", "rosuvastatina", "atorvastatina"], severity: "Moderada", action: "Aumenta RNI", effect: "Competição metabólica." },
+            { terms: ["fibrato", "ciprofibrato", "fenofibrato", "bezafibrato"], severity: "Alta", action: "Aumenta RNI", effect: "Deslocamento de proteínas." },
+            { terms: ["alopurinol"], severity: "Moderada", action: "Aumenta RNI", effect: "Inibe metabolismo da varfarina." },
+            { terms: ["tramadol", "paracetamol", "dipirona"], severity: "Moderada", action: "Aumenta RNI", effect: "Em uso contínuo ou altas doses." },
+            { terms: ["hormônio tireoidiano", "levotiroxina", "puran", "euthyrox"], severity: "Alta", action: "Aumenta RNI", effect: "Catabolismo dos fatores coagulação." },
+            { terms: ["ginkgo", "alho", "ômega 3", "omega 3", "vitamina e"], severity: "Moderada", action: "Risco de Sangramento", effect: "Antiplaquetário." },
+            { terms: ["fluoxetina", "sertralina", "citalopram", "escitalopram", "paroxetina", "isrs"], severity: "Moderada", action: "Risco de Sangramento", effect: "Inibe captação de serotonina nas plaquetas." },
+            { terms: ["ácido valproico", "valproato", "depakene"], severity: "Moderada", action: "Aumenta RNI", effect: "Deslocamento proteico." },
+            { terms: ["rifampicina"], severity: "Grave", action: "Diminui RNI", effect: "Forte indução enzimática. Exige aumento de dose." },
+            { terms: ["carbamazepina", "tegretol"], severity: "Alta", action: "Diminui RNI", effect: "Indução enzimática." },
+            { terms: ["fenobarbital", "gardenal", "fenitoína", "hidantal"], severity: "Alta", action: "Diminui RNI", effect: "Indução enzimática potente." },
+            { terms: ["erva de são joão", "hypericum"], severity: "Alta", action: "Diminui RNI", effect: "Indução da CYP450." },
+            { terms: ["vitamina k", "fitomenadiona", "kanakion"], severity: "Alta", action: "Diminui RNI", effect: "Antagonismo direto." },
+            { terms: ["anticoncepcional", "estrogênio", "reposição hormonal"], severity: "Alta", action: "Diminui RNI", effect: "Efeito pró-trombótico." },
+            { terms: ["colestiramina"], severity: "Moderada", action: "Diminui RNI", effect: "Reduz absorção no intestino." },
+            { terms: ["ritonavir"], severity: "Moderada", action: "Diminui RNI", effect: "Indução enzimática." },
+            { terms: ["chá verde", "matcha"], severity: "Moderada", action: "Diminui RNI", effect: "Ricos em vitamina K." },
+            { terms: ["sucralfato"], severity: "Moderada", action: "Diminui RNI", effect: "Diminui a absorção da varfarina." }
+        ];
+
+        function registerChange() {
+            let now = Date.now();
+            if (now - lastChangeTime > 1000) { 
+                unsavedChangesCount++; lastChangeTime = now; updateUnsavedBanner();
+            }
+        }
+
+        function updateUnsavedBanner() {
+            const banner = document.getElementById('unsavedBanner'); const text = document.getElementById('unsavedText');
+            if(!banner || !text) return;
+            if (unsavedChangesCount < 10) { banner.classList.add('hidden'); return; }
+            banner.classList.remove('hidden');
+            if (unsavedChangesCount >= 20) {
+                banner.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] px-5 py-3 rounded-md shadow-2xl flex items-center gap-4 transition-all duration-300 bg-red-600 text-white ring-4 ring-red-300';
+                text.innerHTML = `<i data-lucide="alert-triangle" class="h-5 w-5 inline mr-2"></i> <strong>Atenção Farmacêutico(a)!</strong> Você já fez ${unsavedChangesCount} alterações sem salvar. Baixe o backup!`;
+            } else {
+                banner.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] px-4 py-2 rounded-full shadow-md flex items-center gap-4 transition-all duration-300 bg-slate-800 text-slate-100 border border-slate-700';
+                text.innerHTML = `<i data-lucide="info" class="h-4 w-4 inline mr-1 text-sky-400"></i> ${unsavedChangesCount} alterações não salvas detectadas. Lembre-se de salvar.`;
+            }
+            if(window.lucide) window.lucide.createIcons();
+        }
+
+        function dismissUnsavedBanner() { document.getElementById('unsavedBanner')?.classList.add('hidden'); }
+
+        function initChecklistUI() {
+            const container = document.getElementById('prevInputsContainer');
+            if(container) {
+                const d = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
+                container.innerHTML = d.map((day, i) => `<div class="flex flex-col"><span class="text-[10px] uppercase font-bold text-center bg-slate-100 border border-slate-300 border-b-0 rounded-t py-1">${day}</span><input type="text" id="prevRel_${i}" class="border border-slate-300 rounded-b px-1 py-1.5 text-[11px] text-center outline-none focus:ring-1 focus:ring-sky-500 placeholder:text-slate-300" onchange="registerChange()"></div>`).join('');
+            }
+            const chkData = [
+                {id: "Bleeding", icon: "droplet", color: "red", text: "1. Apresentou algum sangramento (ex: gengiva, urina, fezes, manchas roxas na pele)?"},
+                {id: "Thrombosis", icon: "activity", color: "orange", text: "2. Apresentou dor, inchaço nas pernas, falta de ar subita ou dor no peito (Sinais de trombose)?"},
+                {id: "Diet", icon: "salad", color: "emerald", text: "3. Houve mudança drástica na alimentação (aumento no consumo de folhas verdes escuras)?"},
+                {id: "MissedDose", icon: "calendar-off", color: "slate", text: "4. Esqueceu de tomar o remédio algum dia ou tomou a dose errada?"},
+                {id: "Hospital", icon: "hospital", color: "sky", text: "5. Foi ao pronto-socorro, hospitalizado ou fez algum procedimento dentário/cirúrgico?"},
+                {id: "NewMeds", icon: "pills", color: "purple", text: "6. Iniciou o uso de algum medicamento novo, chás ou vitaminas (não prescritos na última consulta)?"}
+            ];
+            const chkContainer = document.getElementById('checklistContainer');
+            if(chkContainer) {
+                chkContainer.innerHTML = chkData.map(c => `<div class="border p-3 rounded bg-slate-50 shadow-sm border-slate-200"><label class="font-bold text-sm text-slate-700 flex items-center gap-2"><i data-lucide="${c.icon}" class="h-4 w-4 text-${c.color}-500"></i> ${c.text}</label><div class="mt-2 flex gap-4"><label><input type="radio" name="chk${c.id}" value="Não" checked onchange="toggleChecklistDetails('txt${c.id}', false)"> Não</label><label><input type="radio" name="chk${c.id}" value="Sim" onchange="toggleChecklistDetails('txt${c.id}', true)"> Sim</label></div><input type="text" id="txt${c.id}" class="hidden mt-2 w-full border border-slate-300 rounded p-1.5 text-sm outline-none" placeholder="Descreva..." onkeyup="autoSaveChecklist()"></div>`).join('');
+            }
+        }
+
+        function initIvcfUI() {
+            const ivcfQContainer = document.getElementById('ivcfQuestionsContainer');
+            if(!ivcfQContainer) return;
+            ivcfQContainer.innerHTML = `
+                <div class="border rounded"><div class="bg-slate-100 font-bold px-3 py-1.5 border-b text-sm">1. Idade e Saúde</div><div class="p-3 text-sm flex gap-4 bg-white"><div class="flex-1"><p class="text-xs text-slate-500 mb-1">Idade:</p><label class="block"><input type="radio" name="ivcf_q1" value="0"> 60-74</label><label class="block"><input type="radio" name="ivcf_q1" value="1"> 75-84</label><label class="block"><input type="radio" name="ivcf_q1" value="3"> ≥85</label></div><div class="flex-1"><p class="text-xs text-slate-500 mb-1">Saúde:</p><label class="block"><input type="radio" name="ivcf_q2" value="0"> Boa</label><label class="block"><input type="radio" name="ivcf_q2" value="1"> Ruim</label></div></div></div>
+                <div class="border rounded"><div class="bg-slate-100 font-bold px-3 py-1.5 border-b text-sm">2. Atividades (Instrumentais e Básicas)</div><div class="p-3 text-sm space-y-1 bg-white"><label class="block"><input type="checkbox" id="ivcf_q3"> Parou compras?</label><label class="block"><input type="checkbox" id="ivcf_q4"> Parou cuidar dinheiro?</label><label class="block"><input type="checkbox" id="ivcf_q5"> Parou trabalhos casa?</label><label class="block font-bold text-red-600"><input type="checkbox" id="ivcf_q6"> Parou tomar banho sozinho? (6pt)</label></div></div>
+                <div class="border rounded"><div class="bg-slate-100 font-bold px-3 py-1.5 border-b text-sm">3. Cognição e Humor</div><div class="p-3 text-sm space-y-1 bg-white"><label class="block"><input type="checkbox" id="ivcf_q7"> Memória piorou?</label><label class="block"><input type="checkbox" id="ivcf_q8"> Esquecimento impede atividade?</label><label class="block"><input type="checkbox" id="ivcf_q9"> Triste/Desânimo?</label><label class="block"><input type="checkbox" id="ivcf_q10"> Perdeu interesse?</label></div></div>
+                <div class="border rounded"><div class="bg-slate-100 font-bold px-3 py-1.5 border-b text-sm">4. Mobilidade e Comorbidades</div><div class="p-3 text-sm space-y-1 bg-white"><label class="block"><input type="checkbox" id="ivcf_q11"> Braços acima ombros?</label><label class="block"><input type="checkbox" id="ivcf_q12"> Moeda?</label><label class="block"><input type="checkbox" id="ivcf_q13"> Ajoelhar?</label><label class="block"><input type="checkbox" id="ivcf_q14"> Panturrilha < 31cm?</label><label class="block"><input type="checkbox" id="ivcf_q15"> Dificuldade marcha?</label><label class="block"><input type="checkbox" id="ivcf_q16"> Quedas?</label><label class="block"><input type="checkbox" id="ivcf_q17"> Urina/Fezes?</label><label class="block"><input type="checkbox" id="ivcf_q18"> Visão?</label><label class="block"><input type="checkbox" id="ivcf_q19"> Audição?</label><div class="border-t pt-2 mt-2"><p class="text-xs font-bold text-slate-500 mb-1">Comorbidades Múltiplas:</p><label class="block"><input type="checkbox" id="ivcf_q20_1"> ≥ 5 doenças</label><label class="block"><input type="checkbox" id="ivcf_q20_2"> ≥ 5 medicamentos</label><label class="block"><input type="checkbox" id="ivcf_q20_3"> Internação 6m</label></div></div></div>
+            `;
+        }
+
+        function calculateAge(birthDateStr) {
+            if(!birthDateStr) return null;
+            const today = new Date(); const [y, m, d] = birthDateStr.split('-'); const bDate = new Date(y, m - 1, d);
+            let age = today.getFullYear() - bDate.getFullYear();
+            if (today.getMonth() - bDate.getMonth() < 0 || (today.getMonth() - bDate.getMonth() === 0 && today.getDate() < bDate.getDate())) age--;
+            return age;
+        }
+
+        function updateAgeDisplay() {
+            const valEl = document.getElementById('patBirthDate'); const display = document.getElementById('patAgeDisplay');
+            if(valEl && valEl.value && display) display.innerText = `(${calculateAge(valEl.value)} anos)`; else if (display) display.innerText = '';
+        }
+
+        function isBirthdayNear(birthDateStr, referenceDateObj = new Date()) {
+            if(!birthDateStr) return false;
+            const ref = new Date(referenceDateObj); ref.setHours(0,0,0,0);
+            const [y, m, d] = birthDateStr.split('-'); let bDay = new Date(ref.getFullYear(), m - 1, d);
+            let diff = (bDay - ref) / 86400000;
+            if (diff < -180) { bDay = new Date(ref.getFullYear() + 1, m - 1, d); diff = (bDay - ref) / 86400000; } 
+            else if (diff > 180) { bDay = new Date(ref.getFullYear() - 1, m - 1, d); diff = (bDay - ref) / 86400000; }
+            return diff >= -5 && diff <= 15;
+        }
+
+        function getRadioValue(name) { let el = document.querySelector('input[name="' + name + '"]:checked'); return el ? el.value : 'Não'; }
+
+        function exportData() {
+            const dataStr = JSON.stringify(appState, null, 2); const blob = new Blob([dataStr], { type: "text/plain" }); const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); const now = new Date();
+            a.href = url; a.download = `varfarina_pbh_bkp_${now.toISOString().split('T')[0]}_${now.toTimeString().split(' ')[0].replace(/:/g, '-')}.txt`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+            unsavedChangesCount = 0; updateUnsavedBanner(); alert("Dados exportados com sucesso!");
+        }
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed.patients && parsed.agenda) {
+                        appState = parsed;
+                        for (let date in appState.agenda) { appState.agenda[date] = appState.agenda[date].map(i => typeof i==='string'?{id:i,status:'scheduled'}:i); }
+                        renderPatientList(); openDashboard(); unsavedChangesCount = 0; updateUnsavedBanner(); alert("Importado com sucesso!");
+                    } else alert("Formato inválido.");
+                } catch (err) { alert("Erro ao ler backup."); }
+            }; reader.readAsText(file); this.value = ''; 
+        });
+
+        function generateId() { return '_' + Math.random().toString(36).substr(2, 9); }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.page-content').forEach(el => el.classList.remove('active'));
+            ['dashboard', 'cadastro', 'consulta', 'monitoramento', 'agenda', 'ivcf', 'calendario', 'impressao'].forEach(id => {
+                let btn = document.getElementById('tab-' + id);
+                if(btn && !btn.classList.contains('pointer-events-none')) { btn.classList.remove('tab-active', 'text-indigo-600', 'font-bold'); btn.classList.add('tab-inactive'); }
+            });
+            let targetPage = document.getElementById('page-' + tabId); if(targetPage) targetPage.classList.add('active');
+            let activeBtn = document.getElementById('tab-' + tabId);
+            if(activeBtn && !activeBtn.classList.contains('pointer-events-none')) { activeBtn.classList.remove('tab-inactive'); activeBtn.classList.add('tab-active'); if(tabId === 'impressao') activeBtn.classList.add('text-indigo-600', 'font-bold'); }
+            if(tabId === 'impressao') renderPrintTab();
+            if(tabId === 'calendario') renderGeneralCalendar();
+            if(tabId === 'dashboard') renderDashboard();
+        }
+
+        function renderPatientList() {
+            const c = document.getElementById('patientListContainer'); if(!c) return;
+            const sEl = document.getElementById('searchPatient'); const sTerm = sEl ? sEl.value.toLowerCase() : '';
+            let filtered = appState.patients.filter(p => p.name.toLowerCase().includes(sTerm)).sort((a,b) => a.name.localeCompare(b.name));
+            c.innerHTML = '';
+            if (filtered.length === 0) { c.innerHTML = `<p class="p-4 text-sm text-slate-400 text-center">Nenhum encontrado.</p>`; return; }
+            filtered.forEach(p => {
+                const div = document.createElement('div');
+                div.className = `p-3 border-b cursor-pointer hover:bg-sky-50 transition border-l-4 ${p.id === currentPatientId ? 'bg-sky-50 border-l-sky-500' : 'border-l-transparent'}`;
+                div.onclick = () => loadPatient(p.id);
+                let age = p.birthDate ? calculateAge(p.birthDate) : parseInt(p.age || 0);
+                let aBdg = age ? `<span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">${age} anos</span>` : '';
+                let oIco = p.organizer === 'Sim' ? `<span class="text-amber-500 tooltip flex items-center"><i data-lucide="layout-grid" class="h-4 w-4 ml-1"></i><span class="tooltiptext">Usa Organizador</span></span>` : '';
+                let bIco = isBirthdayNear(p.birthDate) ? `<span class="text-pink-500 tooltip flex items-center"><i data-lucide="cake" class="h-4 w-4 ml-1"></i><span class="tooltiptext">Aniversário Próximo!</span></span>` : '';
+                div.innerHTML = `<div class="font-medium text-slate-800 text-sm flex justify-between items-center"><span class="truncate flex items-center">${p.name} ${bIco}</span>${oIco}</div><div class="text-xs text-slate-500 mt-1 flex gap-2 items-center"><span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">Alvo: ${p.target}</span>${aBdg}</div>`;
+                c.appendChild(div);
+            });
+            if(window.lucide) window.lucide.createIcons();
+        }
+
+        function openDashboard() {
+            currentPatientId = null;
+            document.getElementById('emptyState')?.classList.add('hidden');
+            document.getElementById('tabsContainer')?.classList.remove('hidden');
+            document.getElementById('contentArea')?.classList.remove('hidden');
+            ['tab-cadastro', 'tab-consulta', 'tab-monitoramento', 'tab-ivcf', 'tab-agenda'].forEach(id => { let el = document.getElementById(id); if(el) { el.classList.remove('tab-active', 'tab-inactive'); el.classList.add('text-slate-400', 'pointer-events-none'); } });
+            ['tab-dashboard', 'tab-calendario', 'tab-impressao'].forEach(id => { let el = document.getElementById(id); if(el) { el.classList.remove('text-slate-400', 'pointer-events-none', 'tab-active'); el.classList.add('tab-inactive'); } });
+            switchTab('dashboard'); renderDashboard(); renderPatientList();
+        }
+
+        function renderDashboard() {
+            const today = new Date(); today.setHours(0,0,0,0);
+            const dateImpl = new Date(2026, 3, 1);
+            let upcHTML = "";
+            let upcDates = Object.keys(appState.agenda).map(d => new Date(d.split('-')[0], d.split('-')[1]-1, d.split('-')[2])).filter(d => d >= today).sort((a,b) => a - b);
+
+            if(upcDates.length > 0) {
+                let nD = upcDates[0];
+                let nDStr = `${nD.getFullYear()}-${String(nD.getMonth()+1).padStart(2,'0')}-${String(nD.getDate()).padStart(2,'0')}`;
+                let fStr = `${String(nD.getDate()).padStart(2,'0')}/${String(nD.getMonth()+1).padStart(2,'0')}/${nD.getFullYear()}`;
+                let pats = appState.agenda[nDStr] || [];
+                upcHTML = `<p class="text-xs text-slate-500 mb-2 font-bold">${fStr}</p><ul class="space-y-2">`;
+                pats.forEach(pt => {
+                    let pObj = appState.patients.find(p => p.id === pt.id);
+                    if(pObj) upcHTML += `<li class="text-sm text-slate-700 bg-slate-50 border border-slate-200 p-2 rounded cursor-pointer hover:border-indigo-400 transition" onclick="loadPatient('${pObj.id}')">${pObj.name}</li>`;
+                });
+                upcHTML += `</ul>`;
+                if(pats.length === 0) upcHTML = `<p class="text-sm text-slate-500 italic">Nenhum paciente marcado.</p>`;
+            } else upcHTML = `<p class="text-sm text-slate-500 italic">Sem consultas na agenda.</p>`;
+            
+            let dNext = document.getElementById('dashNextAppts'); if(dNext) dNext.innerHTML = upcHTML;
+
+            let cHTML = "", dHTML = "", cImp = 0, cWor = 0;
+            let cList = [], dList = [], lImp = [], lWor = [];
+
+            appState.patients.forEach(p => {
+                let pts = (p.rniHistory || []).filter(r => r.date && r.value !== '').map(r => ({ date: new Date(r.date.split('-')[0], r.date.split('-')[1]-1, r.date.split('-')[2]), value: parseFloat(r.value) })).sort((a,b) => a.date - b.date);
+                if(pts.length === 0) return;
+                let lRni = pts[pts.length-1].value; let tData = calculateRosendaalTTR(pts, p.target || "2.0-3.0");
+
+                if (lRni >= 5.0 || lRni <= 1.5 || (tData && tData.ttr < 40)) cList.push({ id: p.id, name: p.name, reason: lRni >= 5.0 ? `RNI Alto (${lRni})` : (lRni <= 1.5 ? `RNI Baixo (${lRni})` : `TTR Baixo (${tData.ttr.toFixed(0)}%)`) });
+
+                let mF = 0;
+                if (p.admission) { let [y, m, d] = p.admission.split('-'); mF = (today - new Date(y, m - 1, d)) / 2629920000; }
+                if (tData && tData.ttr >= 70 && mF >= 6) dList.push({ id: p.id, name: p.name, ttr: tData.ttr.toFixed(0) });
+
+                let bPts = pts.filter(pt => pt.date < dateImpl); let aPts = pts.filter(pt => pt.date >= dateImpl);
+                if(bPts.length >= 2 && aPts.length >= 2) {
+                    let tB = calculateRosendaalTTR(bPts, p.target || "2.0-3.0"); let tA = calculateRosendaalTTR(aPts, p.target || "2.0-3.0");
+                    if(tB && tA) {
+                        if(tA.ttr > tB.ttr || tA.ttr >= 70) lImp.push(p.name); else if (tB.ttr >= 50 && tA.ttr < 40) lWor.push(p.name);
+                    }
+                } else if (aPts.length >= 2) {
+                     let tA = calculateRosendaalTTR(aPts, p.target || "2.0-3.0");
+                     if(tA && tA.ttr >= 60) lImp.push(p.name); else if (tA && tA.ttr < 40) lWor.push(p.name);
+                }
+            });
+
+            cList.forEach(c => { cHTML += `<div class="bg-red-50 border border-red-200 p-2 rounded mb-2 cursor-pointer hover:bg-red-100 transition" onclick="loadPatient('${c.id}')"><p class="font-bold text-sm text-red-900">${c.name}</p><p class="text-xs text-red-700 mt-0.5"><i data-lucide="alert-circle" class="h-3 w-3 inline"></i> ${c.reason}</p></div>`; });
+            if(cList.length === 0) cHTML = `<p class="text-sm text-slate-500 italic">Sem pacientes críticos.</p>`;
+            let dCrit = document.getElementById('dashCritical'); if(dCrit) dCrit.innerHTML = cHTML;
+
+            dList.forEach(c => { dHTML += `<div class="bg-emerald-50 border border-emerald-200 p-2 rounded mb-2 cursor-pointer hover:bg-emerald-100 transition" onclick="loadPatient('${c.id}')"><p class="font-bold text-sm text-emerald-900">${c.name}</p><p class="text-xs text-emerald-700 mt-0.5"><i data-lucide="check" class="h-3 w-3 inline"></i> TTR: ${c.ttr}% | Tempo > 6m</p></div>`; });
+            if(dList.length === 0) dHTML = `<p class="text-sm text-slate-500 italic">Sem altas no momento.</p>`;
+            let dDis = document.getElementById('dashDischarge'); if(dDis) dDis.innerHTML = dHTML;
+
+            let tPat = document.getElementById('dashTotalPat'); if(tPat) tPat.innerText = appState.patients.length;
+            let imp = document.getElementById('dashImproved'); if(imp) imp.innerText = lImp.length;
+            let wor = document.getElementById('dashWorsened'); if(wor) wor.innerText = lWor.length;
+            
+            let iEl = document.getElementById('dashImprovedList'); if(iEl) iEl.innerHTML = lImp.length > 0 ? lImp.map(n => `<div class="bg-white bg-opacity-60 px-1.5 py-1 rounded shadow-sm border border-emerald-100 truncate">${n}</div>`).join('') : '<div class="text-center italic opacity-50 mt-2">Nenhum</div>';
+            let wEl = document.getElementById('dashWorsenedList'); if(wEl) wEl.innerHTML = lWor.length > 0 ? lWor.map(n => `<div class="bg-white bg-opacity-60 px-1.5 py-1 rounded shadow-sm border border-amber-100 truncate">${n}</div>`).join('') : '<div class="text-center italic opacity-50 mt-2">Nenhum</div>';
+
+            let ev = lImp.length + lWor.length;
+            let sRate = document.getElementById('dashSuccessRate'); if(sRate) sRate.innerText = ev > 0 ? ((lImp.length / ev) * 100).toFixed(0) : 0;
+            if(window.lucide) window.lucide.createIcons();
+        }
+
+        function openNewPatient() {
+            currentPatientId = null; document.getElementById('patientForm')?.reset();
+            ['patId', 'patContact', 'patBirthDate', 'patDosePrev', 'patDosePrevDate', 'patDoseCurrent', 'patDoseCurrentDate'].forEach(id => { let el=document.getElementById(id); if(el) el.value=''; });
+            for(let i=0; i<7; i++) { let el=document.getElementById('prevRel_'+i); if(el) el.value=''; }
+            document.getElementById('patPillPref').value = 'ambos'; updateAgeDisplay();
+            const t = new Date(); document.getElementById('patAdmission').value = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+            document.getElementById('interactionAlert')?.classList.add('hidden'); document.getElementById('btnDeletePatient')?.classList.add('hidden');
+            
+            ['Bleeding','Thrombosis','Diet','MissedDose','Hospital','NewMeds'].forEach(id => {
+                let r = document.querySelector(`input[name="chk${id}"][value="Não"]`); if(r) r.checked = true; toggleChecklistDetails(`txt${id}`, false);
+            });
+
+            ['tab-cadastro', 'tab-consulta', 'tab-monitoramento', 'tab-ivcf', 'tab-agenda'].forEach(id => { let el = document.getElementById(id); if(el) { el.classList.remove('text-slate-400', 'pointer-events-none', 'tab-active'); el.classList.add('tab-inactive'); } });
+            ['tab-dashboard', 'tab-calendario', 'tab-impressao'].forEach(id => { let el = document.getElementById(id); if(el) { el.classList.remove('tab-active'); el.classList.add('tab-inactive'); } });
+            
+            renderRniInputs(); document.getElementById('decisionPanel')?.classList.add('hidden'); document.getElementById('chartPanel')?.classList.add('hidden'); updateTTRUI(null, null);
+            let evText = document.getElementById('evolutionText'); if(evText) evText.value = '';
+            renderPatientAgenda(); document.getElementById('emptyState')?.classList.add('hidden'); document.getElementById('tabsContainer')?.classList.remove('hidden'); document.getElementById('contentArea')?.classList.remove('hidden');
+            switchTab('cadastro'); renderPatientList(); 
+        }
+
+        function loadPatient(id) {
+            const p = appState.patients.find(x => x.id === id); if (!p) return;
+            currentPatientId = p.id;
+            document.getElementById('patId').value = p.id; document.getElementById('patName').value = p.name; document.getElementById('patContact').value = p.contact || ''; document.getElementById('patBirthDate').value = p.birthDate || '';
+            updateAgeDisplay();
+            document.getElementById('patAdmission').value = p.admission || ''; document.getElementById('patLevel').value = p.level || 'Médio'; document.getElementById('patOrganizer').value = p.organizer || 'Não'; document.getElementById('patIndication').value = p.indication || 'Fibrilação Atrial'; document.getElementById('patTarget').value = p.target || '2.0-3.0'; document.getElementById('patPillPref').value = p.pillPref || 'ambos';
+            document.getElementById('patDosePrev').value = p.dosePrev || 0; document.getElementById('patDosePrevDate').value = p.dosePrevDate || ''; document.getElementById('patDoseCurrent').value = p.doseCurrent || p.weeklyDose || 0; document.getElementById('patDoseCurrentDate').value = p.doseCurrentDate || '';
+            document.getElementById('patMeds').value = p.meds || '';
+            let evText = document.getElementById('evolutionText'); if(evText) evText.value = p.evolution || '';
+
+            ['Bleeding','Thrombosis','Diet','MissedDose','Hospital','NewMeds'].forEach(id => {
+                let v = p.checklist ? p.checklist[id.charAt(0).toLowerCase()+id.slice(1)] : 'Não';
+                let r = document.querySelector(`input[name="chk${id}"][value="${v}"]`); if(r) r.checked = true;
+                let txt = document.getElementById(`txt${id}`); if(txt) txt.value = p.checklist ? (p.checklist[id.charAt(0).toLowerCase()+id.slice(1)+'Details']||'') : '';
+                toggleChecklistDetails(`txt${id}`, v === 'Sim');
+            });
+
+            for(let i=0; i<7; i++) { let el=document.getElementById('prevRel_'+i); if(el) el.value = (p.prevReloginho && p.prevReloginho[i]) ? p.prevReloginho[i] : ''; }
+            document.getElementById('btnDeletePatient')?.classList.remove('hidden');
+            
+            ['tab-cadastro', 'tab-consulta', 'tab-monitoramento', 'tab-ivcf', 'tab-agenda'].forEach(tid => { let el = document.getElementById(tid); if(el) { el.classList.remove('text-slate-400', 'pointer-events-none'); el.classList.add('tab-inactive'); } });
+            ['tab-dashboard', 'tab-calendario', 'tab-impressao'].forEach(tid => { let el = document.getElementById(tid); if(el) { el.classList.remove('tab-active'); el.classList.add('tab-inactive'); } });
+
+            if(p.rniHistory) p.rniHistory.sort((a,b) => new Date(b.date) - new Date(a.date));
+            checkInteractions(); renderRniInputs();
+            document.getElementById('decisionPanel')?.classList.add('hidden'); document.getElementById('chartPanel')?.classList.add('hidden'); updateTTRUI(null, null);
+            renderPatientAgenda(); clearIvcfForm(); renderIvcfHistory();
+            
+            document.getElementById('emptyState')?.classList.add('hidden'); document.getElementById('tabsContainer')?.classList.remove('hidden'); document.getElementById('contentArea')?.classList.remove('hidden');
+            switchTab('cadastro'); renderPatientList();
+            if (p.rniHistory && p.rniHistory.some(r => r.date && r.value !== '')) setTimeout(() => calculateTrend(), 100);
+        }
+
+        function savePatient(e) {
+            if(e) e.preventDefault();
+            let pIdEl = document.getElementById('patId'); if(!pIdEl) return;
+            const id = pIdEl.value || generateId(); const ePat = appState.patients.find(p => p.id === id);
+            let pR = []; for(let i=0; i<7; i++) { let el=document.getElementById('prevRel_'+i); pR.push(el?el.value.trim():''); }
+            const bD = document.getElementById('patBirthDate')?.value || ''; const cA = calculateAge(bD) || (ePat ? ePat.age : null);
+            
+            let chk = {};
+            ['Bleeding','Thrombosis','Diet','MissedDose','Hospital','NewMeds'].forEach(k => {
+                let v = getRadioValue('chk'+k); let txt = document.getElementById('txt'+k) ? document.getElementById('txt'+k).value : '';
+                chk[k.charAt(0).toLowerCase()+k.slice(1)] = v; chk[k.charAt(0).toLowerCase()+k.slice(1)+'Details'] = txt;
+            });
+
+            const pData = {
+                id: id, name: document.getElementById('patName')?.value.trim()||'Paciente', contact: document.getElementById('patContact')?.value.trim()||'',
+                birthDate: bD, age: cA, admission: document.getElementById('patAdmission')?.value||'', level: document.getElementById('patLevel')?.value||'Médio',
+                organizer: document.getElementById('patOrganizer')?.value||'Não', indication: document.getElementById('patIndication')?.value||'FA', target: document.getElementById('patTarget')?.value||'2.0-3.0',
+                pillPref: document.getElementById('patPillPref')?.value||'ambos', dosePrev: parseFloat(document.getElementById('patDosePrev')?.value)||0, dosePrevDate: document.getElementById('patDosePrevDate')?.value||'',
+                doseCurrent: parseFloat(document.getElementById('patDoseCurrent')?.value)||0, doseCurrentDate: document.getElementById('patDoseCurrentDate')?.value||'', weeklyDose: parseFloat(document.getElementById('patDoseCurrent')?.value)||0,
+                meds: document.getElementById('patMeds')?.value||'', prevReloginho: pR, currentReloginho: ePat?ePat.currentReloginho:null,
+                rniHistory: ePat&&ePat.rniHistory?ePat.rniHistory:[], ivcfHistory: ePat&&ePat.ivcfHistory?ePat.ivcfHistory:[], evolution: document.getElementById('evolutionText')?.value||(ePat?ePat.evolution:''), checklist: chk
+            };
+
+            const idx = appState.patients.findIndex(p => p.id === id);
+            if (idx >= 0) appState.patients[idx] = pData; else appState.patients.push(pData);
+            currentPatientId = id; pIdEl.value = id;
+            ['tab-cadastro', 'tab-consulta', 'tab-monitoramento', 'tab-ivcf', 'tab-agenda'].forEach(tid => { let el = document.getElementById(tid); if(el) el.classList.remove('text-slate-400', 'pointer-events-none'); });
+            renderPatientList(); registerChange();
+            
+            if(e) {
+                const btn = e.target.querySelector('button[type="submit"]');
+                if(btn) { const oTxt = btn.innerText; btn.innerText = "Salvo!"; btn.classList.replace('bg-sky-600', 'bg-emerald-600'); setTimeout(() => { btn.innerText = oTxt; btn.classList.replace('bg-emerald-600', 'bg-sky-600'); }, 2000); }
+            }
+        }
+
+        function deleteCurrentPatient() {
+            if(!currentPatientId) return;
+            if(confirm('Excluir paciente e histórico?')) {
+                appState.patients = appState.patients.filter(p => p.id !== currentPatientId);
+                for (let d in appState.agenda) { appState.agenda[d] = appState.agenda[d].filter(i => i.id !== currentPatientId); if(appState.agenda[d].length === 0) delete appState.agenda[d]; }
+                registerChange(); document.getElementById('emptyState')?.classList.remove('hidden'); document.getElementById('tabsContainer')?.classList.add('hidden'); document.getElementById('contentArea')?.classList.add('hidden');
+                currentPatientId = null; renderPatientList();
+                let calPage = document.getElementById('page-calendario'); if(calPage && calPage.classList.contains('active')) renderGeneralCalendar();
+            }
+        }
+
+        function toggleChecklistDetails(fieldId, show) { const el = document.getElementById(fieldId); if (show && el) el.classList.remove('hidden'); else if (el) { el.classList.add('hidden'); el.value = ''; } autoSaveChecklist(); }
+
+        function autoSaveChecklist() {
+            if(!currentPatientId) return; const p = appState.patients.find(x => x.id === currentPatientId);
+            if(p) {
+                ['Bleeding','Thrombosis','Diet','MissedDose','Hospital','NewMeds'].forEach(k => { p.checklist[k.charAt(0).toLowerCase()+k.slice(1)] = getRadioValue('chk'+k); p.checklist[k.charAt(0).toLowerCase()+k.slice(1)+'Details'] = document.getElementById('txt'+k)?.value||''; });
+                registerChange();
+            }
+        }
+
+        function checkInteractions() {
+            const mEl = document.getElementById('patMeds'); if(!mEl) return;
+            const medsTxt = mEl.value.toLowerCase(); const alertBox = document.getElementById('interactionAlert'); const ul = document.getElementById('interactionList');
+            if(!ul || !alertBox) return; ul.innerHTML = '';
+            if(!medsTxt.trim()) { alertBox.classList.add('hidden'); return; }
+            let f = []; interacoesVarfarina.forEach(i => { if(i.terms.some(t => medsTxt.includes(t))) f.push(i); });
+            if(f.length > 0) {
+                f.forEach(i => { 
+                    let tM = i.terms.find(t => medsTxt.includes(t)); 
+                    let bc = i.severity.includes("Alta")||i.severity.includes("Grave")||i.severity.includes("Contraindicad") ? "bg-red-100 text-red-800 border-red-200" : "bg-yellow-100 text-yellow-800 border-yellow-200";
+                    let aIco = i.action.includes("Aumenta") ? '<i data-lucide="trending-up" class="h-3 w-3 inline text-red-600"></i>' : '<i data-lucide="trending-down" class="h-3 w-3 inline text-blue-600"></i>';
+                    ul.innerHTML += `<li class="flex flex-col p-2 bg-white border border-slate-200 rounded-md mb-2"><div class="flex items-center gap-2"><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold border uppercase ${bc}">${i.severity}</span><span class="font-bold uppercase text-slate-800">${tM}</span><span class="text-slate-600 border-l border-slate-300 pl-2 ml-1 flex items-center gap-1">${aIco} ${i.action}</span></div><p class="text-[10px] text-slate-500 mt-1 pl-1">${i.effect}</p></li>`; 
+                });
+                alertBox.classList.remove('hidden'); if(window.lucide) window.lucide.createIcons();
+            } else alertBox.classList.add('hidden');
+        }
+
+        function autoSaveRni() {
+            if (!currentPatientId) return; const p = appState.patients.find(x => x.id === currentPatientId); if(!p) return;
+            let nH = []; document.querySelectorAll('.rni-row').forEach(r => { let d = r.querySelector('.rni-date')?.value||''; let v = r.querySelector('.rni-val')?.value||''; nH.push({ date: d, value: v!==''?parseFloat(v):'' }); });
+            p.rniHistory = nH; registerChange();
+        }
+
+        function addRniRow() {
+            if (!currentPatientId) { alert("Salve o cadastro do paciente primeiro."); return; }
+            const p = appState.patients.find(x => x.id === currentPatientId); if(!p) return;
+            if(!p.rniHistory) p.rniHistory = []; p.rniHistory.unshift({date: '', value: ''}); renderRniInputs(); registerChange();
+        }
+
+        function removeRniRow(i) {
+            if (!currentPatientId) return; const p = appState.patients.find(x => x.id === currentPatientId); if(!p || !p.rniHistory) return;
+            p.rniHistory.splice(i, 1); renderRniInputs(); autoSaveRni(); registerChange();
+        }
+
+        function renderRniInputs() {
+            const c = document.getElementById('rniInputsContainer'); if(!c) return; c.innerHTML = '';
+            if (!currentPatientId) { c.innerHTML = '<p class="text-sm text-slate-500 italic p-2 text-center">Salve o cadastro primeiro.</p>'; return; }
+            const p = appState.patients.find(x => x.id === currentPatientId); let h = p.rniHistory || []; if(h.length === 0) { h = [{date: '', value: ''}]; p.rniHistory = h; }
+            h.forEach((d, i) => { c.innerHTML += `<div class="flex items-center gap-2 rni-row mb-2 pb-2 border-b border-slate-100 last:border-0 last:mb-0 last:pb-0"><span class="text-xs font-bold text-slate-400 w-4">${h.length - i}.</span><input type="date" value="${d.date}" class="rni-date w-1/2 border rounded px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-sky-500" onchange="autoSaveRni()"><input type="number" step="0.01" value="${d.value !== '' ? d.value : ''}" placeholder="RNI" class="rni-val w-1/2 border rounded px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-sky-500" onchange="autoSaveRni()"><button onclick="removeRniRow(${i})" class="text-red-500 hover:text-red-700 p-1.5 tooltip bg-red-50 hover:bg-red-100 rounded border border-red-100 transition"><i data-lucide="trash-2" class="h-4 w-4"></i></button></div>`; });
+            if(window.lucide) window.lucide.createIcons();
+        }
+
+        function calculateRosendaalTTR(pts, tgt) {
+            if (!pts || pts.length < 2) return null; pts.sort((a,b) => a.date - b.date);
+            let [mT, MxT] = tgt.split('-').map(Number); let tD = 0; let dR = 0;
+            for (let i = 0; i < pts.length - 1; i++) {
+                let d1=pts[i].date, d2=pts[i+1].date, r1=pts[i].value, r2=pts[i+1].value;
+                let dd = (d2 - d1) / 86400000; if (dd <= 0) continue;
+                tD += dd; let mR = Math.min(r1, r2); let MxR = Math.max(r1, r2);
+                if (mR >= mT && MxR <= MxT) dR += dd;
+                else if (mR > MxT || MxR < mT) dR += 0;
+                else { let rd = Math.abs(r2 - r1); let rs = Math.max(mR, mT); let re = Math.min(MxR, MxT); dR += (dd * ((re - rs) / rd)); }
+            }
+            if (tD === 0) return null; return { ttr: (dR / tD) * 100, totalDays: tD, daysInRange: dR, startDate: pts[0].date, endDate: pts[pts.length - 1].date };
+        }
+
+        function updateTTRUI(tData, adm) {
+            const vD = document.getElementById('ttrValueDisplay'); if(!vD) return;
+            const pS = vD.nextElementSibling; const dC = document.getElementById('ttrDetailsContainer'); const eD = document.getElementById('ttrEmptyDisplay'); const aB = document.getElementById('ttrDischargeAlert');
+            if (!tData) {
+                vD.innerText = '--'; vD.className = 'text-5xl font-black text-slate-300'; if(pS) pS.className = 'text-2xl font-bold text-slate-300 mb-1';
+                if(dC) dC.classList.add('hidden'); if(eD) eD.classList.remove('hidden'); if(aB) aB.classList.add('hidden'); return;
+            }
+            vD.innerText = tData.ttr.toFixed(1);
+            if (tData.ttr > 70) { vD.className = 'text-5xl font-black text-emerald-600'; if(pS) pS.className = 'text-2xl font-bold text-emerald-600 mb-1'; } 
+            else if (tData.ttr >= 50) { vD.className = 'text-5xl font-black text-yellow-500'; if(pS) pS.className = 'text-2xl font-bold text-yellow-500 mb-1'; } 
+            else { vD.className = 'text-5xl font-black text-red-600'; if(pS) pS.className = 'text-2xl font-bold text-red-600 mb-1'; }
+            if(dC) dC.classList.remove('hidden'); if(eD) eD.classList.add('hidden');
+            const fd = (d) => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth() + 1).padStart(2,'0')}/${d.getFullYear()}`;
+            document.getElementById('ttrStartDate').innerText = fd(tData.startDate); document.getElementById('ttrEndDate').innerText = fd(tData.endDate);
+            document.getElementById('ttrDaysIn').innerText = tData.daysInRange.toFixed(0); document.getElementById('ttrDaysOut').innerText = (tData.totalDays - tData.daysInRange).toFixed(0); document.getElementById('ttrDaysTotal').innerText = tData.totalDays.toFixed(0);
+            if(aB) {
+                aB.classList.remove('hidden'); let mF = 0;
+                if (adm) { let [y, m, d] = adm.split('-'); mF = (new Date() - new Date(y, m - 1, d)) / 2629920000; }
+                if (tData.ttr > 70 && mF >= 6) { aB.className = 'mt-4 w-full p-3 rounded border text-sm font-bold text-left bg-emerald-50 border-emerald-200 text-emerald-900'; aB.innerHTML = `<i data-lucide="check-circle" class="h-5 w-5 inline-block mb-0.5 text-emerald-600 mr-1"></i> APTO ALTA CLÍNICA.<br><span class="font-normal text-xs block mt-1">TTR > 70% e tempo ≥ 6 meses.</span>`; } 
+                else { aB.className = 'mt-4 w-full p-3 rounded border text-sm font-bold text-left bg-slate-50 border-slate-200 text-slate-700'; let mtv = []; if (tData.ttr <= 70) mtv.push("TTR < 70%"); if (mF < 6) mtv.push(`Tempo < 6 meses`); if (!adm) mtv.push("Admissão não informada"); aB.innerHTML = `<i data-lucide="alert-circle" class="h-5 w-5 inline-block mb-0.5 text-amber-500 mr-1"></i> NÃO APTO ALTA.<br><span class="font-normal text-xs block mt-1">Motivo(s): ${mtv.join('; ')}.</span>`; }
+            }
+            if(window.lucide) window.lucide.createIcons();
+        }
+
+        function calculateTrend() {
+            if(!currentPatientId) { alert("Selecione um paciente."); return; } autoSaveRni(); 
+            const p = appState.patients.find(x => x.id === currentPatientId); if(!p) return;
+            let pts = (p.rniHistory || []).filter(r => r.date && r.value !== '' && !isNaN(r.value));
+            if(pts.length === 0) { updateTTRUI(null, null); alert("Informe RNI."); return; }
+            let cPts = pts.map(r => { let [y, m, d] = r.date.split('-'); return { date: new Date(y, m-1, d), value: parseFloat(r.value) }; }).sort((a,b) => a.date - b.date);
+            applyProtocolLogic(cPts[cPts.length-1].value);
+            updateTTRUI(calculateRosendaalTTR(cPts, p.target), p.admission);
+            if(cPts.length < 2) { renderRniChart(cPts, p.target, 0, cPts[0].value, cPts[0].date.getTime()); return; }
+            let fT = cPts[0].date.getTime(); let N = cPts.length; let sX=0, sY=0, sXY=0, sXX=0;
+            cPts.forEach(pt => { let x = (pt.date.getTime() - fT) / 86400000; sX+=x; sY+=pt.value; sXY+=x*pt.value; sXX+=x*x; });
+            let slope = (N*sXY - sX*sY) / (N*sXX - sX*sX); let inter = (sY - slope*sX) / N;
+            renderRniChart(cPts, p.target, slope, inter, fT); registerChange();
+        }
+
+        function renderRniChart(cPts, tStr, sl, int, fT) {
+            const cp = document.getElementById('chartPanel'); if(!cp) return; cp.classList.remove('hidden');
+            const cv = document.getElementById('rniChart'); if(!cv) return; const ctx = cv.getContext('2d');
+            if (rniChartInstance) rniChartInstance.destroy();
+            let [mT, MxT] = (tStr || "2.0-3.0").split('-').map(Number);
+            rniChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: cPts.map(p => `${String(p.date.getDate()).padStart(2,'0')}/${String(p.date.getMonth()+1).padStart(2,'0')}`),
+                    datasets: [
+                        { label: 'RNI Real', data: cPts.map(p => p.value), borderColor: '#0ea5e9', backgroundColor: '#0ea5e9', borderWidth: 3, pointRadius: 5, pointBackgroundColor: '#fff', zIndex: 3 },
+                        { label: 'Tendência', data: cPts.map(p => (sl * ((p.date.getTime() - fT) / 86400000)) + int), borderColor: '#94a3b8', borderWidth: 2, borderDash: [5,5], pointRadius: 0, zIndex: 2 },
+                        { label: `Alvo Min (${mT})`, data: cPts.map(() => mT), borderColor: '#10b981', borderWidth: 1, pointRadius: 0, fill: false, zIndex: 1 },
+                        { label: `Alvo Max (${MxT})`, data: cPts.map(() => MxT), borderColor: '#10b981', borderWidth: 1, pointRadius: 0, backgroundColor: 'rgba(16,185,129,0.1)', fill: '-1', zIndex: 1 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, suggestedMax: Math.max(5, MxT+1, ...cPts.map(p=>p.value)) } } }
+            });
+        }
+
+        function formatDoseText(mg, pref) {
+            if (mg <= 0) return "Pausa";
+            if (pref === '2.5mg') { let c = Math.round(mg/2.5); return c>0 ? `${c} comp. 2,5mg` : "0 mg"; } 
+            else if (pref === '5mg') { let c = Math.floor(mg/5); let h = (mg%5)>=2.5; let t=[]; if(c>0) t.push(`${c} comp. 5mg`); if(h) t.push(`Metade 5mg`); return t.length>0 ? t.join(" + ") : "0 mg"; } 
+            else { let c5 = Math.floor(mg/5); let c25 = Math.floor((mg%5)/2.5); let t=[]; if(c5>0) t.push(`${c5} comp. 5mg`); if(c25>0) t.push(`${c25} comp. 2,5mg`); return t.length>0 ? t.join(" + ") : "0 mg"; }
+        }
+
+        function getWeeklyDoseArray(wDose) {
+            if(wDose <= 0) return [0,0,0,0,0,0,0];
+            let rD = Math.max(2.5, Math.round(wDose/2.5)*2.5); let tU = Math.round(rD/2.5);
+            let bU = Math.floor(tU/7); let rem = tU%7; let bD = bU*2.5;
+            let sc = Array(7).fill(bD);
+            let idx = {1:[2], 2:[1,4], 3:[0,2,4], 4:[0,2,4,6], 5:[0,1,3,4,6], 6:[0,1,2,3,4,5]}[rem] || [];
+            idx.forEach(i => sc[i]+=2.5); return sc;
+        }
+
+        function generateWeeklySchedule(wDose, pref) {
+            if(wDose <= 0) { currentWeeklyScheduleArray = [0,0,0,0,0,0,0]; return "<span class='text-red-600 font-bold'>Suspender medicação. Avaliar protocolo.</span>"; }
+            let sc = getWeeklyDoseArray(wDose); currentWeeklyScheduleArray = sc;
+            const dN = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
+            let dM = {}; sc.forEach((mg, i) => { let txt = formatDoseText(mg, pref); if(!dM[txt]) dM[txt]=[]; dM[txt].push(dN[i]); });
+            let tD = sc.reduce((a,b)=>a+b,0);
+            let ht = `<p class="font-bold text-sm mb-2"><i data-lucide="pill" class="h-4 w-4"></i> Semanal (~${tD} mg):</p><ul class="space-y-1.5 text-sm">`;
+            for (let t in dM) { let ds = dM[t].length===7?"Todos os dias":dM[t].join(", "); ht += `<li><span class="font-semibold">${ds}:</span> <span class="bg-white px-1.5 py-0.5 rounded border shadow-sm">${t}</span></li>`; }
+            return ht + `</ul>`;
+        }
+
+        function calculateDispensation() {
+            let sEl = document.getElementById('dispenseStart'); let eEl = document.getElementById('dispenseEnd');
+            let rEl = document.getElementById('dispenseResult'); let iEl = document.getElementById('includeReturnDay');
+            if(!sEl || !eEl || !rEl || !iEl || !currentPatientId) { if(rEl) rEl.classList.add('hidden'); return; }
+            if(!sEl.value || !eEl.value) { rEl.classList.add('hidden'); return; }
+            let [sy, sm, sd] = sEl.value.split('-'); let [ey, em, ed] = eEl.value.split('-');
+            let st = new Date(sy, sm-1, sd); let edD = new Date(ey, em-1, ed);
+            let tD = Math.round((edD - st) / 86400000) + (iEl.checked ? 1 : 0);
+            if (tD <= 0) { rEl.innerHTML="Data inválida."; rEl.classList.remove('hidden'); rEl.className="text-sm font-semibold mt-2 p-3 rounded-md text-center text-red-700 bg-red-50 border border-red-200"; return; }
+            
+            let p = appState.patients.find(x => x.id === currentPatientId); let prf = p ? (p.pillPref||'ambos') : 'ambos';
+            let rTxt = p&&p.currentReloginho ? p.currentReloginho : Array(7).fill('');
+            let c5=0, c25=0, h5=0;
+            for(let i=0; i<tD; i++) {
+                let d = new Date(st.getTime() + i*86400000); let idx = (d.getDay()+6)%7;
+                let c = parsePillCountsFromText(rTxt[idx]||''); c5+=c.qtt5; c25+=c.qtt25; h5+=c.half5;
+            }
+            let t5 = c5 + Math.ceil(h5/2); let hp = [];
+            if (prf === '5mg') { if(t5>0) hp.push(`💊 <strong>${t5}</strong> comp. de 5mg`); } 
+            else if (prf === '2.5mg') { if(c25>0) hp.push(`💊 <strong>${c25}</strong> comp. de 2,5mg`); } 
+            else { if(t5>0) hp.push(`💊 <strong>${t5}</strong> comp. de 5mg`); if(c25>0) hp.push(`💊 <strong>${c25}</strong> comp. de 2,5mg`); }
+            
+            let eN = h5>0 ? `<span class="text-xs font-bold text-indigo-600 block mt-1">Partir ${h5} comp. ao meio.</span>` : "";
+            rEl.innerHTML = hp.length===0 ? `Tratamento ${tD} dias:<br><span class="text-slate-500">Pausa (0 mg)</span>` : `Para <strong>${tD} dias</strong>, separar:<br><div class="mt-2 text-lg">${hp.join('<br>')}${eN}</div>`;
+            rEl.className = "text-sm font-semibold mt-2 p-3 rounded-md text-center text-indigo-800 bg-indigo-50 border border-indigo-100";
+        }
+
+        function updateCustomReloginho(idx) {
+            let p = appState.patients.find(x => x.id === currentPatientId); if(!p) return;
+            if(!p.currentReloginho) p.currentReloginho = Array(7).fill('');
+            let tEl = document.getElementById(`pill-text-${idx}`);
+            if(tEl) { p.currentReloginho[idx] = tEl.innerText; parsePillsFromText(idx); calculateDispensation(); registerChange(); }
+        }
+
+        function fillReloginho() {
+            if(!currentPatientId) return; let p = appState.patients.find(x => x.id === currentPatientId); if(!p) return;
+            let prf = p.pillPref || 'ambos'; const dN = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
+            let rw = document.getElementById('reloginhoWrapper'); if(rw) rw.classList.remove('hidden');
+            let pV = document.getElementById('prevReloginhoView'); let pG = document.getElementById('prevReloginhoGrid');
+            if(p.prevReloginho && p.prevReloginho.some(v=>v!=='') && pV && pG) {
+                pV.classList.remove('hidden'); pG.innerHTML = '';
+                for(let i=0; i<7; i++) pG.innerHTML += `<div class="flex flex-col items-center border rounded bg-white shadow-sm"><div class="w-full text-center bg-slate-200 border-b py-1 font-bold text-[9px] uppercase">${dN[i]}</div><div class="p-2 w-full text-center text-xs font-medium">${p.prevReloginho[i]||'-'}</div></div>`;
+            } else if (pV) pV.classList.add('hidden');
+
+            let c = document.getElementById('relDaysContainer'); if(!c) return; c.innerHTML = '';
+            let eEl = document.getElementById('dispenseEnd'); let rT = eEl&&eEl.value ? `${eEl.value.split('-')[2]}/${eEl.value.split('-')[1]}/${eEl.value.split('-')[0]}` : '--';
+            document.getElementById('relPacienteView').innerText = p.name || '--'; document.getElementById('relRetornoView').innerText = rT;
+            for(let i=0; i<7; i++) {
+                let t = (p.currentReloginho && p.currentReloginho[i]!==undefined) ? p.currentReloginho[i] : formatDoseText(currentWeeklyScheduleArray[i]||0, prf);
+                c.innerHTML += `<div class="flex flex-col items-center border rounded-md bg-white h-full flex-1"><div class="w-full text-center bg-slate-100 border-b py-1.5 font-bold text-[10px] uppercase">${dN[i]}</div><div class="p-2 w-full flex flex-col items-center flex-1"><div id="pill-visual-${i}" class="flex flex-wrap justify-center gap-1 mb-2 min-h-[50px] items-center pointer-events-none"></div><div contenteditable="true" id="pill-text-${i}" onblur="updateCustomReloginho(${i})" onkeyup="parsePillsFromText(${i})" class="w-full h-full text-center text-[11px] font-medium p-1 outline-none focus:bg-indigo-50">${t}</div></div></div>`;
+            }
+            for(let i=0; i<7; i++) parsePillsFromText(i);
+        }
+
+        function parsePillsFromText(idx) {
+            let tEl = document.getElementById(`pill-text-${idx}`); let vEl = document.getElementById(`pill-visual-${idx}`);
+            if(tEl && vEl) { vEl.innerHTML = getPillsHTMLFromText(tEl.innerText); if(window.lucide) window.lucide.createIcons(); }
+        }
+
+        function getPillsHTMLFromText(t) {
+            let c = parsePillCountsFromText(t); let ht = '';
+            for(let i=0; i<c.qtt5; i++) ht += `<div class="pill pill-5">5mg</div>`;
+            for(let i=0; i<c.half5; i++) ht += `<div class="pill pill-5-half">Metade</div>`;
+            for(let i=0; i<c.qtt25; i++) ht += `<div class="pill pill-25">2,5</div>`;
+            let n = t.toLowerCase(); if (c.isPausa) return `<div class="pill pill-none"><i data-lucide="ban" class="h-5 w-5 mb-0.5"></i>Pausa</div>`;
+            if (ht === '' && n.trim() === '') return `<div class="pill pill-none border-transparent"><i data-lucide="edit-3" class="h-5 w-5 text-slate-300"></i></div>`;
+            return ht;
+        }
+
+        function parsePillCountsFromText(t) {
+            let n = t.toLowerCase().replace(/2\.5/g, '2,5');
+            let q25 = n.includes('2,5') ? parseInt((n.match(/(\d+)\s*(?:comp|cp|cpr|de|x)?(?:[^\d]*)?2,5/)||[0,1])[1]) : 0;
+            let n2 = n.replace(/(?:\d+\s*)?(?:comp|cp|cpr|de|x)?(?:[^\d]*)?2,5[a-z]*/g, '');
+            let h5 = (n2.includes('1/2')||n2.includes('meio')||n2.includes('metade')) ? 1 : 0;
+            if(h5) n2 = n2.replace(/(?:1\/2|meio|metade)\s*(?:do\s*)?(?:comp|cp|cpr|de|x)?\s*(?:de\s*)?(?:5mg|5)/g, '').replace(/(?:1\/2|meio|metade)/g, '');
+            let q5 = n2.includes('5') ? parseInt((n2.match(/(\d+)\s*(?:e\s*)?(?:comp|cp|cpr|de|x)?(?:[^\d]*)?5/)||[0,1])[1]) : 0;
+            if (n.includes("pausa")||n.includes("não tomar")||n.includes("suspender")||(q5===0&&q25===0&&h5===0&&n.trim()==='0 mg')) return { qtt5: 0, half5: 0, qtt25: 0, isPausa: true };
+            return { qtt5: q5, half5: h5, qtt25: q25, isPausa: false };
+        }
+
+        function applyProtocolLogic(cRni) {
+            const p = appState.patients.find(x => x.id === currentPatientId);
+            const tgt = document.getElementById('patTarget')?.value || '2.0-3.0';
+            const cDose = parseFloat(document.getElementById('patDosePrev')?.value) || 0;
+            const prf = p ? (p.pillPref || 'ambos') : 'ambos';
+            
+            document.getElementById('currentRniDisplay').innerText = cRni.toFixed(2); document.getElementById('targetDisplay').innerText = tgt;
+            document.getElementById('decisionPanel')?.classList.remove('hidden'); document.getElementById('conductSchedule')?.classList.remove('hidden');
+
+            let [mT, MxT] = tgt.split('-').map(Number); let cInR = 0;
+            if (p && p.rniHistory) {
+                let h = [...p.rniHistory].filter(r => r.date && r.value !== '').sort((a,b) => new Date(b.date) - new Date(a.date));
+                for(let i=0; i<h.length; i++) { let v=parseFloat(h[i].value); if(v>=mT && v<=MxT) cInR++; else break; }
+            }
+            
+            let res = { status: "", text: "", colorClass: "", calc: "" }; let tDose = cDose; let sDays = 28;
+
+            if (tgt === "2.0-3.0") {
+                if (cRni < 1.5) { res.colorClass="bg-amber-50 border-amber-500 text-amber-900"; res.status="Aumentar Dose (20%)"; res.text="Aumentar dose em 10-20%."; tDose=cDose*1.15; sDays=7; } 
+                else if (cRni <= 1.9) { res.colorClass="bg-sky-50 border-sky-500 text-sky-900"; res.status="Aumentar Dose (5-10%)"; res.text="Aumentar 5-10%."; tDose=cDose*1.075; sDays=14; } 
+                else if (cRni <= 3.0) { res.colorClass="bg-emerald-50 border-emerald-500 text-emerald-900"; res.status="Manter Dose"; res.text="Estável na faixa."; sDays = cInR>=3?28:(cInR===2?21:14); tDose=cDose; } 
+                else if (cRni <= 3.9) { res.colorClass="bg-amber-50 border-amber-500 text-amber-900"; res.status="Diminuir Dose (5-10%)"; res.text="Diminuir 5-10%."; tDose=cDose*0.925; sDays=14; } 
+                else if (cRni <= 4.9) { res.colorClass="bg-orange-50 border-orange-500 text-orange-900"; res.status="Omitir + Reduzir (10%)"; res.text="Omitir 1 dose, diminuir 10%."; tDose=cDose*0.90; sDays=7; } 
+                else if (cRni <= 8.9) { res.colorClass="bg-red-50 border-red-600 text-red-900"; res.status="Alerta (Quadro 5)"; res.text="Omitir 1-2 doses, diminuir 10-20%. Avaliar Vit K."; tDose=cDose*0.85; sDays=7; }
+                else { res.colorClass="bg-red-50 border-red-600 text-red-900"; res.status="Crítico (Quadro 5)"; res.text="Suspender. Vit K oral."; tDose=0; sDays=7; }
+            } else {
+                if (cRni < 2.0) { res.colorClass="bg-amber-50 border-amber-500 text-amber-900"; res.status="Aumentar Dose (20%)"; res.text="Aumentar 10-20%."; tDose=cDose*1.15; sDays=7; }
+                else if (cRni <= 2.4) { res.colorClass="bg-sky-50 border-sky-500 text-sky-900"; res.status="Aumentar Dose (5-10%)"; res.text="Aumentar 5-10%."; tDose=cDose*1.075; sDays=14; }
+                else if (cRni <= 3.5) { res.colorClass="bg-emerald-50 border-emerald-500 text-emerald-900"; res.status="Manter Dose"; res.text="Estável na faixa."; sDays = cInR>=3?28:(cInR===2?21:14); tDose=cDose; }
+                else if (cRni <= 4.0) { res.colorClass="bg-amber-50 border-amber-500 text-amber-900"; res.status="Diminuir Dose (5-10%)"; res.text="Diminuir 5-10%."; tDose=cDose*0.925; sDays=14; }
+                else if (cRni <= 4.9) { res.colorClass="bg-orange-50 border-orange-500 text-orange-900"; res.status="Omitir + Reduzir (10%)"; res.text="Omitir 1 dose, diminuir 10%."; tDose=cDose*0.90; sDays=7; }
+                else if (cRni <= 8.9) { res.colorClass="bg-red-50 border-red-600 text-red-900"; res.status="Alerta (Quadro 5)"; res.text="Omitir 1-2 doses, diminuir 10-20%."; tDose=cDose*0.85; sDays=7; }
+                else { res.colorClass="bg-red-50 border-red-600 text-red-900"; res.status="Crítico (Quadro 5)"; res.text="Suspender. Vit K oral."; tDose=0; sDays=7; }
+            }
+
+            res.calc = tDose>0 ? `Cálculo: ~${tDose.toFixed(1)}mg (Base: ${cDose}mg)` : "Dose suspensa.";
+            let tDate = new Date(); tDate.setDate(tDate.getDate() + sDays); tDate.setDate(tDate.getDate() + (3 - tDate.getDay()));
+            let fD = `${tDate.getFullYear()}-${String(tDate.getMonth()+1).padStart(2,'0')}-${String(tDate.getDate()).padStart(2,'0')}`;
+            
+            document.getElementById('suggestedReturnText').innerText = `${String(tDate.getDate()).padStart(2,'0')}/${String(tDate.getMonth()+1).padStart(2,'0')}/${tDate.getFullYear()} (${sDays/7} sem)`;
+            document.getElementById('suggestedReturnBox').classList.remove('hidden');
+            let bx=document.getElementById('conductBox'); if(bx) bx.className=`p-4 rounded-md border-l-4 ${res.colorClass}`;
+            document.getElementById('conductTitle').innerText=res.status; document.getElementById('conductDesc').innerText=res.text; document.getElementById('conductMath').innerText = cDose>0 ? res.calc : "Insira a Dose Anterior no Cadastro.";
+            document.getElementById('appliedWeeklyDose').value=tDose.toFixed(1); document.getElementById('appliedPillPref').value=prf;
+
+            if (cDose > 0 || tDose > 0) {
+                document.getElementById('conductSchedule').innerHTML = generateWeeklySchedule(tDose, prf);
+                if (p) p.currentReloginho = getWeeklyDoseArray(tDose).map(mg => formatDoseText(mg, prf));
+                document.getElementById('patDoseCurrent').value = tDose.toFixed(1);
+                document.getElementById('dispensationCalc').classList.remove('hidden');
+                let dS=document.getElementById('dispenseStart'); if(dS&&!dS.value) {let n=new Date(); dS.value=`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;}
+                document.getElementById('dispenseEnd').value = fD; document.getElementById('scheduleDate').value = fD;
+                fillReloginho(); calculateDispensation(); checkAgendaAvailability();
+            } else {
+                document.getElementById('conductSchedule').classList.add('hidden'); document.getElementById('dispensationCalc').classList.add('hidden'); document.getElementById('reloginhoWrapper').classList.add('hidden');
+            }
+            if(window.lucide) window.lucide.createIcons();
+        }
+
+        function syncPillPref() {
+            const pP = document.getElementById('patPillPref'); const aP = document.getElementById('appliedPillPref');
+            if(pP && aP) { pP.value = aP.value; updateReloginhoFromAppliedDose(); }
+        }
+
+        function updateReloginhoFromAppliedDose() {
+            if(!currentPatientId) return; let p = appState.patients.find(x => x.id === currentPatientId); if(!p) return;
+            let nD = parseFloat(document.getElementById('appliedWeeklyDose')?.value) || 0;
+            document.getElementById('patDoseCurrent').value = nD; 
+            let prf = document.getElementById('appliedPillPref')?.value || 'ambos'; p.pillPref = prf;
+            let dA = getWeeklyDoseArray(nD); currentWeeklyScheduleArray = dA; p.currentReloginho = dA.map(mg => formatDoseText(mg, prf));
+            fillReloginho(); calculateDispensation(); autoSaveEvolution(); 
+            let dP = parseFloat(document.getElementById('patDosePrev')?.value)||0;
+            document.getElementById('conductMath').innerText = `Ajustado manualmente para: ${nD.toFixed(1)} mg ${dP>0?`(Base: ${dP}mg)`:''}`;
+            registerChange(); alert("Atualizado!");
+        }
+
+        function autoSaveEvolution() {
+            if (!currentPatientId) return; const p = appState.patients.find(x => x.id === currentPatientId);
+            if(p && document.getElementById('evolutionText')) { p.evolution = document.getElementById('evolutionText').value; registerChange(); }
+        }
+
+        function generatePreEvolution() {
+            if(!currentPatientId) return; const p = appState.patients.find(x => x.id === currentPatientId); if(!p) return;
+            let h = [...(p.rniHistory||[])].filter(r=>r.date&&r.value!=='').sort((a,b)=>new Date(b.date)-new Date(a.date));
+            let rA="N/A", dA="N/A", rAnt="N/A", dAnt="N/A", dI="N/A";
+            if(h.length>0) { rA=parseFloat(h[0].value).toFixed(2); dA=h[0].date.split('-').reverse().join('/'); }
+            if(h.length>1) { rAnt=parseFloat(h[1].value).toFixed(2); dAnt=h[1].date.split('-').reverse().join('/'); dI=Math.round((new Date(h[0].date)-new Date(h[1].date))/86400000); }
+            let tgt = p.target||"2.0-3.0"; let cD = p.doseCurrent||0; let pD = p.dosePrev||0;
+            let c = p.checklist||{}; let mT = (p.meds||"").toLowerCase();
+            let f = []; interacoesVarfarina.forEach(i=>{let mt=i.terms.find(t=>mT.includes(t)); if(mt) f.push({t:mt,s:i.severity,a:i.action, e:i.effect});});
+            
+            let iStr = c.newMeds==='Sim'?`Novo Med: ${c.newMedsDetails}.\n`:"";
+            if(f.length>0) {
+                iStr += `\n[ALERTA - ANEXO G]:\n${f.map(i=>`- ${i.t.toUpperCase()} (${i.s}): ${i.a}.`).join('\n')}\n`;
+                let rNum = parseFloat(rA); let tM = parseFloat(tgt.split('-')[0]); let tMx = parseFloat(tgt.split('-')[1]);
+                if(!isNaN(rNum)){
+                    let hA = f.some(i=>i.a.toLowerCase().includes("aumenta")); let hD = f.some(i=>i.a.toLowerCase().includes("diminui"));
+                    if (rNum>tMx && hA) iStr += `>> CORRELAÇÃO: A elevação do RNI e o risco hemorrágico estão diretamente relacionados ao uso concomitante de medicamentos que potencializam a varfarina.`;
+                    else if (rNum<tM && hD) iStr += `>> CORRELAÇÃO: A queda do RNI e o risco trombótico encontram forte justificativa no uso de indutores/antagonistas.`;
+                    else if (rNum>=tM && rNum<=tMx) iStr += `>> CORRELAÇÃO: RNI no alvo, porém o uso dos interferentes acima exige monitoramento laboratorial atento.`;
+                    else iStr += `>> CORRELAÇÃO: Requer atenção à polifarmácia (predispõe instabilidade).`;
+                }
+            } else if(mT) iStr+=`Uso: ${p.meds}. Sem interações Anexo G mapeadas.`; else iStr+="Não relata uso de outros medicamentos.";
+
+            let txt = `Evolução Farmacêutica - ${new Date().toLocaleDateString('pt-BR')}
+RNI Atual: ${rA} (${dA}) | RNI Anterior: ${rAnt} (${dAnt}) | Int: ${dI} dias.
+Sangramentos: ${c.bleeding==='Sim'?'Sim - '+c.bleedingDetails:'Não'}
+Trombose: ${c.thrombosis==='Sim'?'Sim - '+c.thrombosisDetails:'Não'}
+
+Meds e Interações:
+${iStr}
+
+Conduta: Nova Dose: ${cD}mg (Base Ant: ${pD}mg). Impresso relógio.`;
+            document.getElementById('evolutionText').value = txt; autoSaveEvolution(); savePatient(); alert("Gerado!");
+        }
+
+        // --- IVCF ---
+        function clearIvcfForm() {
+            document.getElementById('ivcfForm')?.reset();
+            const d = new Date(); document.getElementById('ivcfDate').value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            let bE = document.getElementById('patBirthDate'); let a = bE&&bE.value?calculateAge(bE.value):null;
+            if(a!==null) {
+                if(a>=85) {let q=document.querySelector('input[name="ivcf_q1"][value="3"]'); if(q)q.checked=true;}
+                else if(a>=75) {let q=document.querySelector('input[name="ivcf_q1"][value="1"]'); if(q)q.checked=true;}
+                else {let q=document.querySelector('input[name="ivcf_q1"][value="0"]'); if(q)q.checked=true;}
+            }
+            calculateIvcf();
+        }
+
+        function calculateIvcf() {
+            let s=0; let q1=document.querySelector('input[name="ivcf_q1"]:checked'); if(q1) s+=parseInt(q1.value); let q2=document.querySelector('input[name="ivcf_q2"]:checked'); if(q2) s+=parseInt(q2.value);
+            if(document.getElementById('ivcf_q3')?.checked||document.getElementById('ivcf_q4')?.checked||document.getElementById('ivcf_q5')?.checked) s+=4;
+            if(document.getElementById('ivcf_q6')?.checked) s+=6; if(document.getElementById('ivcf_q7')?.checked) s+=2; if(document.getElementById('ivcf_q8')?.checked) s+=4;
+            for(let i=9;i<=14;i++){ if(document.getElementById('ivcf_q'+i)?.checked) s+=1; }
+            for(let i=15;i<=19;i++){ if(document.getElementById('ivcf_q'+i)?.checked) s+=2; }
+            if(document.getElementById('ivcf_q20_1')?.checked||document.getElementById('ivcf_q20_2')?.checked||document.getElementById('ivcf_q20_3')?.checked) s+=4;
+            
+            let d=document.getElementById('ivcfScoreDisplay'); if(d) d.innerText=s;
+            let c=document.getElementById('ivcfCategoryDisplay'); let cS="";
+            if(c) { if(s<=6){cS="Robusto (0-6)"; c.style.backgroundColor="#10b981";} else if(s<=14){cS="Risco (7-14)"; c.style.backgroundColor="#f59e0b";} else{cS="Frágil (≥15)"; c.style.backgroundColor="#ef4444";} c.innerText=cS; }
+            return {score:s, category:cS};
+        }
+
+        function saveIvcfTest() {
+            if(!currentPatientId) return; let dE=document.getElementById('ivcfDate'); if(!dE||!dE.value) return;
+            const c=calculateIvcf(); const p=appState.patients.find(x=>x.id===currentPatientId); if(!p.ivcfHistory) p.ivcfHistory=[];
+            let a={}; a.q1=document.querySelector('input[name="ivcf_q1"]:checked')?.value||'0'; a.q2=document.querySelector('input[name="ivcf_q2"]:checked')?.value||'0';
+            for(let i=3;i<=19;i++){ a['q'+i]=document.getElementById('ivcf_q'+i)?.checked; }
+            a.q20_1=document.getElementById('ivcf_q20_1')?.checked; a.q20_2=document.getElementById('ivcf_q20_2')?.checked; a.q20_3=document.getElementById('ivcf_q20_3')?.checked;
+            p.ivcfHistory.push({date:dE.value, score:c.score, category:c.category, answers:a});
+            let b=document.querySelector('#ivcfForm button'); if(b){let o=b.innerHTML; b.innerHTML="Salvo!"; b.classList.replace('bg-indigo-600','bg-emerald-600'); setTimeout(()=>{b.innerHTML=o; b.classList.replace('bg-emerald-600','bg-indigo-600'); clearIvcfForm(); renderIvcfHistory();},1000);} registerChange();
+        }
+
+        function removeIvcf(idx) {
+            if(confirm("Excluir?")) { appState.patients.find(p=>p.id===currentPatientId).ivcfHistory.splice(idx,1); renderIvcfHistory(); registerChange(); }
+        }
+
+        function renderIvcfHistory() {
+            const l=document.getElementById('ivcfHistoryList'); if(!l) return; l.innerHTML=''; if(!currentPatientId) return;
+            const p=appState.patients.find(x=>x.id===currentPatientId); if(!p.ivcfHistory||p.ivcfHistory.length===0){ l.innerHTML='<li class="p-4 text-center">Vazio</li>'; return; }
+            let h=[...p.ivcfHistory].map((i,x)=>({...i, o:x})).sort((a,b)=>new Date(b.date)-new Date(a.date));
+            h.forEach(i => { let fd=i.date.split('-').reverse().join('/'); let cCl=i.score>=15?"bg-red-100 text-red-800":(i.score>=7?"bg-yellow-100 text-yellow-800":"bg-emerald-100 text-emerald-800"); l.innerHTML+=`<li class="flex justify-between p-3 border rounded"><div><div class="font-bold text-sm">${fd}</div><div class="mt-1"><span class="font-black mr-2">${i.score} pts</span><span class="${cCl} px-2 py-0.5 rounded-full text-[10px] uppercase font-bold">${i.category}</span></div></div><button onclick="removeIvcf(${i.o})" class="text-red-500 p-2"><i data-lucide="trash-2" class="h-4 w-4"></i></button></li>`; }); if(window.lucide) window.lucide.createIcons();
+        }
+
+        // --- AGENDA E PRINT ---
+        function checkAgendaAvailability() {
+            let dE = document.getElementById('scheduleDate'); let b = document.getElementById('btnSchedule'); let s = document.getElementById('agendaStatus');
+            if(!dE||!b||!s) return; b.disabled = true; if(!dE.value) { s.innerText=""; return; }
+            let dt = new Date(dE.value.split('-')[0], dE.value.split('-')[1]-1, dE.value.split('-')[2]);
+            if(dt.getDay()!==3) { s.innerHTML="Inválida. Apenas Quartas."; return; }
+            let st = appState.agenda[dE.value]?appState.agenda[dE.value].length:0;
+            if(appState.agenda[dE.value]?.some(i=>i.id===currentPatientId)) { s.innerHTML="Já agendado."; return; }
+            if(st>=4) { s.innerHTML="Vagas esgotadas (4/4)."; } else { s.innerHTML=`Vagas: ${4-st}/4.`; b.disabled=false; }
+        }
+
+        function schedulePatient() {
+            if(!currentPatientId) return; let d = document.getElementById('scheduleDate')?.value; if(!d) return;
+            if(!appState.agenda[d]) appState.agenda[d]=[]; appState.agenda[d].push({id:currentPatientId, status:'scheduled'});
+            document.getElementById('scheduleDate').value=""; checkAgendaAvailability(); renderPatientAgenda(); registerChange(); alert("Agendado!");
+        }
+
+        function cancelAppointment(dStr, pId) {
+            if(confirm('Desmarcar?')) { appState.agenda[dStr]=appState.agenda[dStr].filter(i=>i.id!==pId); if(appState.agenda[dStr].length===0) delete appState.agenda[dStr]; renderPatientAgenda(); let c=document.getElementById('page-calendario'); if(c&&c.classList.contains('active')) renderGeneralCalendar(); checkAgendaAvailability(); registerChange(); }
+        }
+
+        function updateAppointmentStatus(dStr, pId, st) {
+            let i=appState.agenda[dStr]?.find(x=>x.id===pId); if(i) i.status=st; renderPatientAgenda(); let c=document.getElementById('page-calendario'); if(c&&c.classList.contains('active')) renderGeneralCalendar(); registerChange();
+        }
+
+        function renderPatientAgenda() {
+            if(!currentPatientId) return; const l=document.getElementById('patientAgendaList'); if(!l) return; l.innerHTML='';
+            let md=[]; for(let d in appState.agenda){ let i=appState.agenda[d].find(x=>x.id===currentPatientId); if(i) md.push({date:d, status:i.status}); }
+            if(md.length===0){ l.innerHTML='<li>Vazio.</li>'; return; }
+            md.sort((a,b)=>new Date(a.date)-new Date(b.date)).forEach(d=>{ let fd=d.date.split('-').reverse().join('/'); let sB=d.status==='attended'?'<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[10px] uppercase">Compareceu</span>':(d.status==='missed'?'<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded text-[10px] uppercase">Faltou</span>':'<span class="bg-sky-100 text-sky-800 px-2 py-0.5 rounded text-[10px] uppercase">Agendado</span>'); let ab=d.status==='scheduled'?`<button onclick="updateAppointmentStatus('${d.date}','${currentPatientId}','attended')" class="p-1"><i data-lucide="check" class="h-3 w-3 text-emerald-600"></i></button><button onclick="updateAppointmentStatus('${d.date}','${currentPatientId}','missed')" class="p-1"><i data-lucide="x" class="h-3 w-3 text-red-600"></i></button>`:`<button onclick="updateAppointmentStatus('${d.date}','${currentPatientId}','scheduled')" class="p-1 text-slate-500">Desfazer</button>`; l.innerHTML+=`<li class="flex items-center gap-2 p-2 border rounded"><span class="font-bold">${fd}</span>${sB}<div class="ml-auto flex items-center">${ab}<button onclick="cancelAppointment('${d.date}','${currentPatientId}')" class="p-1 text-red-500 ml-2"><i data-lucide="trash-2" class="h-3 w-3"></i></button></div></li>`; }); if(window.lucide) window.lucide.createIcons();
+        }
+
+        function renderGeneralCalendar() {
+            const c=document.getElementById('generalCalendarContainer'); if(!c) return; c.innerHTML='';
+            let ds=Object.keys(appState.agenda).filter(d=>appState.agenda[d].length>0).sort((a,b)=>new Date(a)-new Date(b));
+            if(ds.length===0){ c.innerHTML='<div class="text-center py-10 text-slate-500"><i data-lucide="calendar-x" class="h-10 w-10 mx-auto mb-3 opacity-50"></i> Nenhum agendamento registrado.</div>'; if(window.lucide) window.lucide.createIcons(); return; }
+            let today = new Date(); today.setHours(23,59,59,999);
+            ds.forEach(d=>{
+                let dt=new Date(d.split('-')[0], d.split('-')[1]-1, d.split('-')[2]); let op = dt<today?"opacity-70":"";
+                let b = dt<today?`<span class="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full ml-2 uppercase font-bold tracking-wider">Passado</span>`:'';
+                let ht=`<div class="border rounded-lg overflow-hidden shadow-sm mb-4 ${op}"><div class="bg-slate-100 border-b px-4 py-3 flex justify-between items-center"><h4 class="font-bold text-slate-800 flex items-center gap-2"><i data-lucide="calendar" class="h-4 w-4 text-indigo-600"></i> Quarta-feira, ${d.split('-').reverse().join('/')} ${b}</h4><span class="text-xs font-bold bg-indigo-200 text-indigo-800 px-2.5 py-1 rounded-full">${appState.agenda[d].length}/4 Vagas Preenchidas</span></div><ul class="divide-y divide-slate-100 bg-white">`;
+                
+                let pats = appState.agenda[d].map(i => { let p = appState.patients.find(x=>x.id===i.id); return p ? {...p, status: i.status} : null; }).filter(x=>x);
+                pats.sort((a, b) => (b.age || 0) - (a.age || 0));
+                
+                pats.forEach(p => {
+                    let sB = p.status==='attended'?'<span class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 uppercase">Compareceu</span>':(p.status==='missed'?'<span class="bg-red-100 text-red-800 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 uppercase">Faltou</span>':'<span class="bg-sky-100 text-sky-800 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 uppercase">Agendado</span>');
+                    
+                    let contactInfo = p.contact ? `<span class="font-medium text-slate-600 flex items-center gap-1 inline-flex"><i data-lucide="phone" class="h-3 w-3"></i> ${p.contact}</span> &nbsp;|&nbsp; ` : '';
+                    let ageInfo = p.age ? `${p.age} anos &nbsp;|&nbsp; ` : '';
+                    let bdayIcon = isBirthdayNear(p.birthDate, dt) ? `<span class="text-pink-500 tooltip flex items-center ml-2"><i data-lucide="cake" class="h-4 w-4"></i><span class="tooltiptext">Aniversário Próximo à Consulta!</span></span>` : '';
+
+                    let acts = p.status === 'scheduled' ? 
+                        `<button onclick="updateAppointmentStatus('${d}', '${p.id}', 'attended'); event.stopPropagation();" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 p-1.5 rounded tooltip border border-emerald-200"><i data-lucide="check" class="h-4 w-4"></i><span class="tooltiptext">Marcar Presença</span></button><button onclick="updateAppointmentStatus('${d}', '${p.id}', 'missed'); event.stopPropagation();" class="bg-red-50 hover:bg-red-100 text-red-700 p-1.5 rounded tooltip border border-red-200 ml-1"><i data-lucide="x" class="h-4 w-4"></i><span class="tooltiptext">Marcar Falta</span></button>` 
+                        : `<button onclick="updateAppointmentStatus('${d}', '${p.id}', 'scheduled'); event.stopPropagation();" class="bg-slate-100 hover:bg-slate-200 text-slate-700 p-1.5 rounded tooltip border border-slate-300"><i data-lucide="rotate-ccw" class="h-4 w-4"></i><span class="tooltiptext">Desfazer (Voltar para Agendado)</span></button>`;
+
+                    ht += `
+                    <li class="px-4 py-3 hover:bg-slate-50 flex justify-between items-center transition group cursor-pointer" onclick="loadPatient('${p.id}')">
+                        <div class="flex-1">
+                            <p class="font-semibold text-slate-800 text-sm group-hover:text-indigo-600 transition flex items-center">${p.name} ${bdayIcon} ${sB}</p>
+                            <p class="text-xs text-slate-500 mt-1 flex items-center">${contactInfo}${ageInfo}<span class="font-medium text-slate-600">Dose Anterior:</span>&nbsp;${p.dosePrev||0}mg</p>
+                        </div>
+                        <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition" onclick="event.stopPropagation();">
+                            ${acts}
+                            <button onclick="cancelAppointment('${d}', '${p.id}'); event.stopPropagation();" class="bg-slate-50 hover:bg-slate-200 text-slate-600 p-1.5 rounded tooltip border border-slate-300 ml-2"><i data-lucide="trash-2" class="h-4 w-4"></i><span class="tooltiptext">Desmarcar / Remover</span></button>
+                            <button onclick="loadPatient('${p.id}'); event.stopPropagation();" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium flex items-center gap-1 ml-4 border border-indigo-200 bg-indigo-50 px-2 py-1.5 rounded">Perfil <i data-lucide="chevron-right" class="h-4 w-4"></i></button>
+                        </div>
+                    </li>`;
+                });
+                ht+='</ul></div>'; c.innerHTML+=ht;
+            });
+            if(window.lucide) window.lucide.createIcons();
+        }
+
+        function renderPrintTab() {
+            const l=document.getElementById('printPatientList'); if(!l) return; const sE=document.getElementById('searchPrint'); const s=sE?sE.value.toLowerCase():''; l.innerHTML='';
+            let f=appState.patients.filter(p=>p.name.toLowerCase().includes(s)).sort((a,b)=>a.name.localeCompare(b.name));
+            if(f.length===0){ l.innerHTML='<li class="p-6 text-center text-slate-400">Nenhum paciente encontrado.</li>'; return; }
+            f.forEach(p => {
+                let dt = ""; for(let d in appState.agenda){if(appState.agenda[d].some(i=>i.id===p.id)){dt=d.split('-').reverse().join('/'); break;}}
+                let b = dt ? `<span class="bg-indigo-100 text-indigo-800 text-[10px] px-2 py-0.5 rounded font-bold ml-2">Retorno: ${dt}</span>` : `<span class="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 rounded font-bold ml-2">Sem Retorno Marcado</span>`;
+                l.innerHTML += `<li class="flex items-center gap-4 p-3 hover:bg-slate-50 transition cursor-pointer" onclick="document.getElementById('cb_print_${p.id}').click()"><input type="checkbox" id="cb_print_${p.id}" class="print-cb h-5 w-5 rounded cursor-pointer" value="${p.id}" onclick="event.stopPropagation(); togglePrintSelection()"><div class="flex-1"><p class="font-bold text-slate-800 text-sm">${p.name} ${b}</p><p class="text-xs text-slate-500 mt-1">Dose Atual: <span class="font-bold">${p.doseCurrent||0}mg</span></p></div></li>`;
+            }); togglePrintSelection();
+        }
+
+        function toggleAllPrint(mCb) { document.querySelectorAll('.print-cb').forEach(cb=>cb.checked=mCb.checked); togglePrintSelection(); }
+        function togglePrintSelection() {
+            let s=document.querySelectorAll('.print-cb:checked').length;
+            let cE=document.getElementById('printSelectionCount'); if(cE) cE.innerText=`${s} selecionados`;
+            let b=document.getElementById('btnExecutePrint'); if(b) b.disabled=s===0;
+        }
+
+        function executeBatchPrint() {
+            const sel=document.querySelectorAll('.print-cb:checked'); if(sel.length===0) return;
+            const bA=document.getElementById('batchPrintArea'); if(!bA) return; bA.innerHTML='';
+            const dN=["Segunda","Terça","Quarta","Quinta","Sexta","Sábado","Domingo"];
+            sel.forEach(cb => {
+                const p=appState.patients.find(x=>x.id===cb.value); if(!p) return;
+                let rt=""; for(let d in appState.agenda){if(appState.agenda[d].some(i=>i.id===p.id)){rt=d.split('-').reverse().join('/'); break;}}
+                let dH='';
+                for(let i=0;i<7;i++){
+                    let t=(p.currentReloginho&&p.currentReloginho[i]!==undefined)?p.currentReloginho[i]:formatDoseText(getWeeklyDoseArray(p.doseCurrent||0)[i],p.pillPref||'ambos');
+                    let pl=getPillsHTMLFromText(t);
+                    dH+=`<div class="batch-day-col"><div class="w-full text-center bg-slate-100 border-b border-slate-300 py-1 font-bold text-[9px] uppercase text-slate-700">${dN[i]}</div><div class="p-1 w-full flex flex-col items-center justify-start flex-1"><div class="flex flex-wrap justify-center gap-0.5 mb-1 min-h-[35px] items-center">${pl}</div><div class="w-full text-center text-[10px] font-medium text-slate-800 leading-tight">${t}</div></div></div>`;
+                }
+                bA.innerHTML+=`<div class="batch-reloginho"><div class="flex justify-between items-center border-b-2 border-slate-800 pb-1 mb-2"><div class="flex items-center gap-4"><h2 class="text-base font-black uppercase tracking-widest text-slate-900">Uso Varfarina</h2><span class="text-[11px] font-bold text-slate-800">Paciente: <span class="border-b border-slate-400 inline-block min-w-[150px] text-center whitespace-nowrap overflow-hidden align-bottom">${p.name}</span></span><span class="text-[11px] font-bold text-slate-800">Retorno: <span class="border-b border-slate-400 inline-block min-w-[70px] text-center align-bottom">${rt}</span></span></div><div class="text-right leading-tight"><p class="text-[9px] font-bold text-slate-600 uppercase">5mg (Vermelho) | 2,5mg (Amarelo)</p><p class="text-[11px] font-black text-slate-800 mt-0.5">Horário: 17 Horas</p></div></div><div class="batch-days-wrapper">${dH}</div><div class="pt-1 mt-1 border-t border-slate-200 flex justify-between items-center text-[9px] text-slate-500 font-medium"><span>Ambulatório de Anti-coagulação do HRTN</span><span>Contato: 3459-3356</span></div></div>`;
+            });
+            if(window.lucide) window.lucide.createIcons(); document.body.classList.add('batch-printing');
+            setTimeout(()=>{ window.print(); document.body.classList.remove('batch-printing'); },300);
+        }
+
+        window.onload = () => { initIvcfUI(); initChecklistUI(); if(window.lucide) window.lucide.createIcons(); openDashboard(); };
+    </script>
+</body>
+</html>
